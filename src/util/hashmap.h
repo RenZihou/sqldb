@@ -1,7 +1,7 @@
 #ifndef MY_HASH_MAP
 #define MY_HASH_MAP
-#include "pagedef.h"
-#include "MyLinkList.h"
+#include "utils/pagedef.h"
+#include "linklist.h"
 /*
  * hash表的键
  */

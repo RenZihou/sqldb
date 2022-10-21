@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(sqldb C CXX)
+project(sqldb)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
-
-add_executable(sqldb main.cpp)
-
-target_include_directories(sqldb PRIVATE filesystem)
+add_subdirectory(src)
