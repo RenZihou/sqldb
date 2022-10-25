@@ -1,3 +1,7 @@
+// file_manager.h
+// -*- coding: utf-8 -*-
+// @Author: RenZihou
+
 #ifndef FILE_MANAGER_H_
 #define FILE_MANAGER_H_
 
@@ -11,7 +15,7 @@
 
 class FileManager {
 private:
-    const std::string wd;  // working directory (table directory)
+    std::string wd = ".";  // working directory (table directory)
     SIMap *fd;  // <filename, file descriptor> map
 
     int _openFile(const std::string &filename) {
@@ -24,8 +28,27 @@ private:
         return 0;
     }
 
+    FileManager() : fd(new SIMap) {}
+
 public:
-    explicit FileManager(std::string wd) : wd(std::move(wd)), fd(new SIMap) {}
+//    explicit FileManager(std::string wd) : wd(std::move(wd)), fd(new SIMap) {}
+
+    FileManager(const FileManager &) = delete;
+
+    FileManager(FileManager &&) = delete;
+
+    static FileManager &fm() {
+        static FileManager fm;
+        return fm;
+    }
+
+    /**
+     * @param wd_ working directory
+     * @description set working directory
+     */
+    void setWd(const std::string &wd_) {
+        this->wd = wd_;
+    }
 
     /**
      * @param filename filename relative to working directory

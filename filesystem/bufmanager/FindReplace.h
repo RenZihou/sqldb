@@ -1,7 +1,7 @@
 #ifndef BUF_SEARCH
 #define BUF_SEARCH
-#include "../utils/MyLinkList.h"
-#include "../utils/MyHashMap.h"
+#include "../../src/util/linklist.h"
+#include "../../src/util/hashmap.h"
 #include "../utils/pagedef.h"
 //template <int CAP_>
 /*
