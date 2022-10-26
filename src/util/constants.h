@@ -31,10 +31,9 @@
  * 缓存中页面个数上限
  */
 #define CAP 60000
-/*
- * hash算法的模
- */
-#define MOD 60000
+
+#define HASH_OFFSET 2166136261  // hash init value
+#define HASH_PRIME 16777619  // hash multiplier
 #define IN_DEBUG 0
 #define DEBUG_DELETE 0
 #define DEBUG_ERASE 1

@@ -11,12 +11,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "../util/constants.h"
-#include "../util/si_map.h"
+#include "../util/hashmap.h"
 
 class FileManager {
 private:
     std::string wd = ".";  // working directory (table directory)
-    SIMap *fd;  // <filename, file descriptor> map
+    HashMap<std::string> *fd;  // <filename, file descriptor> map
 
     int _openFile(const std::string &filename) {
         int f = open((this->wd + "/" + filename).c_str(), O_RDWR);
@@ -28,7 +28,7 @@ private:
         return 0;
     }
 
-    FileManager() : fd(new SIMap) {}
+    FileManager() : fd(new HashMap<std::string>(MAX_OPEN_FILE)) {}
 
 public:
 //    explicit FileManager(std::string wd) : wd(std::move(wd)), fd(new SIMap) {}
