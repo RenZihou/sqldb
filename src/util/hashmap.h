@@ -5,6 +5,7 @@
 #ifndef MY_HASH_MAP
 #define MY_HASH_MAP
 
+#include <string>
 #include "./constants.h"
 
 template<typename KT>
@@ -15,14 +16,15 @@ private:
     unsigned *hkeys{};
     int *values{};
 
-    unsigned _hash(const KT &key) {  // FNV-1a hash
-        unsigned hash = HASH_OFFSET;
-        for (auto c: key) {
-            hash = hash ^ c;
-            hash = hash * HASH_PRIME;
-        }
-        return hash;
-    }
+//    unsigned _hash(const KT &key) {  // FNV-1a hash
+//        unsigned hash = HASH_OFFSET;
+//        for (auto c: key) {
+//            hash = hash ^ c;
+//            hash = hash * HASH_PRIME;
+//        }
+//        return hash;
+//    }
+    virtual unsigned _hash(const KT &key) = 0;
 
 public:
     /**
@@ -87,6 +89,44 @@ public:
         delete[] hkeys;
         delete[] values;
     }
+};
+
+class StringHashMap : public HashMap<std::string> {
+private:
+    unsigned _hash(const std::string &key) override {  // FNV-1a hash
+        unsigned hash = HASH_OFFSET;
+        for (auto c: key) {
+            hash = hash ^ c;
+            hash = hash * HASH_PRIME;
+        }
+        return hash;
+    }
+public:
+    using HashMap::HashMap;
+};
+
+struct Page {
+    std::string filename;
+    int pageID;
+    inline bool operator==(const Page &rhs) const {
+        return filename == rhs.filename && pageID == rhs.pageID;
+    }
+};
+
+class PageHashMap : public HashMap<Page> {
+private:
+    unsigned _hash(const Page &key) override {  // FNV-1a hash
+        unsigned hash = HASH_OFFSET;
+        for (auto c: key.filename) {
+            hash = hash ^ c;
+            hash = hash * HASH_PRIME;
+        }
+        hash = hash ^ key.pageID;
+//        hash = hash * HASH_PRIME;
+        return hash;
+    }
+public:
+    using HashMap::HashMap;
 };
 
 //class _HashMap {

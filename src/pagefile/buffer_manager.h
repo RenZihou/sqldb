@@ -8,14 +8,14 @@
 #include <string>
 #include "../util/hashmap.h"
 #include "../../filesystem/bufmanager/FindReplace.h"
-#include "../../filesystem/utils/pagedef.h"
 #include "./file_manager.h"
 #include "../util/linklist.h"
+
 
 class BufferManager {
 private:
     int last;
-    MyHashMap *hash;
+    PageHashMap *hash;
     FindReplace *replace;
     //MyLinkList* bpl;
 //	bool* dirty;
