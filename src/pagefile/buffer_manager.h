@@ -6,9 +6,9 @@
 #define BUFFER_MANAGER_H_
 
 #include <string>
-#include "../util/hashmap.h"
-#include "../../filesystem/bufmanager/FindReplace.h"
 #include "./file_manager.h"
+#include "../util/hashmap.h"
+#include "../util/find_replace.h"
 #include "../util/linklist.h"
 
 
