@@ -102,7 +102,7 @@ public:
 
 struct Page {
     std::string filename;
-    int pageID = -1;
+    unsigned pageID = -1;
 
     inline bool operator==(const Page &rhs) const {
         return filename == rhs.filename && pageID == rhs.pageID;
@@ -195,39 +195,5 @@ public:
         return 0;
     }
 };
-
-//class _HashMap {
-//private:
-//    static const int A = 1;
-//    static const int B = 1;
-//    int CAP_, MOD_;
-//
-//public:
-//    /*
-//     * @函数名replace
-//     * @参数index:指定的value
-//     * @参数k1:指定的第一个key
-//     * @参数k2:指定的第二个key
-//     * 功能:在hash表中，将指定value对应的两个key设置为k1和k2
-//     */
-//    void replace(int index, int k1, int k2) {
-//        int h = hash(k1, k2);
-//        //cout << h << endl;
-//        list->insertFirst(h, index);
-//        a[index].key1 = k1;
-//        a[index].key2 = k2;
-//    }
-//
-//    /*
-//     * @函数名getKeys
-//     * @参数index:指定的value
-//     * @参数k1:存储指定value对应的第一个key
-//     * @参数k2:存储指定value对应的第二个key
-//     */
-//    void getKeys(int index, int &k1, int &k2) {
-//        k1 = a[index].key1;
-//        k2 = a[index].key2;
-//    }
-//};
 
 #endif  // HASHMAP_H_

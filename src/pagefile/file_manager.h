@@ -44,7 +44,7 @@ public:
     }
 
     /**
-     * @param wd_ working directory
+     * @param wd_ new working directory
      * @description set working directory
      */
     void setWd(const std::string &wd_) {
@@ -73,7 +73,7 @@ public:
      * @return 0 for success, -1 for error
      * @description write data (start form buf, length is PAGE_SIZE) to the page
      */
-    int writePage(const std::string &filename, int pageID, BufType buf) {
+    int writePage(const std::string &filename, unsigned pageID, BufType buf) {
         int f = this->fd->get(filename);  // file descriptor
         if (f == -1) {
             f = this->_openFile(filename);
@@ -100,7 +100,7 @@ public:
      * @return 0 for success, -1 for error
      * @description copy whole page to buf
      */
-    int readPage(const std::string &filename, int pageID, BufType buf) {
+    int readPage(const std::string &filename, unsigned pageID, BufType buf) {
         int f = this->fd->get(filename);
         if (f == -1) {
             f = this->_openFile(filename);

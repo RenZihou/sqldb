@@ -21,8 +21,8 @@
  * 页面字节数以2为底的指数
  */
 #define PAGE_SIZE_IDX 13  // log2(PAGE_SIZE)
-//#define PAGE_SIZE 8192  // page size in bytes
 #define PAGE_SIZE (1 << PAGE_SIZE_IDX)  // page size in bytes
+#define PAGE_SIZE_MASK (PAGE_SIZE - 1)  // page size mask
 #define MAX_FMT_INT_NUM 128
 //#define BUF_PAGE_NUM 65536
 #define MAX_OPEN_FILE 128  // max open file number
@@ -38,10 +38,9 @@
 #define DEBUG_DELETE 0
 #define DEBUG_ERASE 1
 #define DEBUG_NEXT 1
-/*
- * 一个表中列的上限
- */
-#define MAX_COL_NUM 31
+
+#define MAX_COLUMN 31  // max column number in a table
+#define MAX_COLUMN_NAME_LEN 128  // max column name length in a table
 /*
  * 数据库中表的个数上限
  */

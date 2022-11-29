@@ -25,7 +25,7 @@ private:
         return new unsigned int[(PAGE_SIZE >> 2)];
     }
 
-    int fetchPage(const std::string &filename, int pageID) {
+    int fetchPage(const std::string &filename, unsigned pageID) {
         BufType buf;
         int index = replace->find();
         buf = addr[index];
@@ -44,7 +44,22 @@ private:
         return index;
     }
 
+    BufferManager() : hash(new PageHashMap(CAP)), dirty(new unsigned [(CAP >> 5) + 1] {}), addr(new BufType[CAP] {}) {
+        last = -1;
+        replace = new FindReplace(CAP);
+    }
+
 public:
+
+    BufferManager(const BufferManager &) = delete;
+
+    BufferManager(BufferManager &&) = delete;
+
+    static BufferManager &bm() {
+        static BufferManager bm;
+        return bm;
+    }
+
     /**
      * @param filename filename relative to working directory
      * @return 0 for success, -1 for error
@@ -54,24 +69,17 @@ public:
         return FileManager::fm().createFile(filename);
     }
 
-    /*
-     * @函数名allocPage
-     * @参数fileID:文件id，数据库程序在运行时，用文件id来区分正在打开的不同的文件
-     * @参数pageID:文件页号，表示在fileID指定的文件中，第几个文件页
-     * @参数index:函数返回时，用来记录缓存页面数组中的下标
-     * @参数ifRead:是否要将文件页中的内容读到缓存中
-     * 返回:缓存页面的首地址
-     * 功能:为文件中的某一个页面获取一个缓存中的页面
-     *           缓存中的页面在缓存页面数组中的下标记录在index中
-     *           并根据ifRead是否为true决定是否将文件中的内容写到获取的缓存页面中
-     * 注意:在调用函数allocPage之前，调用者必须确信(fileID,pageID)指定的文件页面不存在缓存中
-     *           如果确信指定的文件页面不在缓存中，那么就不用在hash表中进行查找，直接调用替换算法，节省时间
+    /**
+     * @param filename filename relative to working directory
+     * @param pageID page id
+     * @return index of page buffer
+     * @description allocate new page
      */
-    int allocPage(const std::string &filename, int pageID, bool ifRead = false) {
+    int allocPage(const std::string &filename, unsigned pageID) {
         int index = fetchPage(filename, pageID);
-        if (ifRead) {
-            FileManager::fm().readPage(filename, pageID, this->addr[index]);
-        }
+//        if (ifRead) {
+//            FileManager::fm().readPage(filename, pageID, this->addr[index]);
+//        }
         return index;
     }
 
@@ -81,7 +89,7 @@ public:
      * @return index of page buffer
      * @description get buffer index of specified page, fetch the page if not in buffer
      */
-    int getPage(const std::string &filename, int pageID) {
+    int getPage(const std::string &filename, unsigned pageID) {
         int index = this->hash->get(Page{.filename=filename, .pageID=pageID});
         if (index == -1) index = this->fetchPage(filename, pageID);
         return index;
@@ -140,11 +148,6 @@ public:
         for (int i = 0; i < CAP; ++i) {
             writeBack(i);
         }
-    }
-
-    BufferManager() : hash(new PageHashMap(CAP)), dirty(new unsigned [(CAP >> 5) + 1] {}), addr(new BufType[CAP] {}) {
-        last = -1;
-        replace = new FindReplace(CAP);
     }
 };
 
