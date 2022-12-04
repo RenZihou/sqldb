@@ -35,21 +35,20 @@ struct TableHeader {
 
 class Table {
 private:
-    TableHeader header;
-    std::string name;
+    TableHeader *header;
+    const std::string name;
+    const int header_pages = sizeof(TableHeader) / PAGE_SIZE + 1;
 
 public:
-    Table();
+    explicit Table(std::string table_name);
 
     ~Table();
-
-    int create(std::string table_name);
 
     /**
      * @param data serialized data
      * @description insert a record into table
      */
-    void insertRecord(char *data);
+    void insertRecord(void *data);
 
     /**
      * @param record_offset record offset in bytes
@@ -61,13 +60,13 @@ public:
      * @param record_offset record offset in bytes
      * @param data new serialized data
      */
-    void updateRecord(unsigned record_offset, char *data);
+    void updateRecord(unsigned record_offset, void *data);
 
     /**
      * @param record_offset record offset in bytes
      * @return record
      */
-    char *selectRecord(unsigned record_offset);
+    void *selectRecord(unsigned record_offset);
 };
 
 
