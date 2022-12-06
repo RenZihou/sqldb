@@ -19,197 +19,101 @@ public:
   /**
    * Visit parse trees produced by SQLParser.
    */
-    std::any visitProgram(SQLParser::ProgramContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitProgram(SQLParser::ProgramContext *context) = 0;
 
-    std::any visitStatement(SQLParser::StatementContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitStatement(SQLParser::StatementContext *context) = 0;
 
-    std::any visitCreateDb(SQLParser::CreateDbContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitCreateDb(SQLParser::CreateDbContext *context) = 0;
 
-    std::any visitDropDb(SQLParser::DropDbContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitDropDb(SQLParser::DropDbContext *context) = 0;
 
-    std::any visitShowDbs(SQLParser::ShowDbsContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitShowDbs(SQLParser::ShowDbsContext *context) = 0;
 
-    std::any visitUseDb(SQLParser::UseDbContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitUseDb(SQLParser::UseDbContext *context) = 0;
 
-    std::any visitShowTables(SQLParser::ShowTablesContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitShowTables(SQLParser::ShowTablesContext *context) = 0;
 
-    std::any visitShowIndexes(SQLParser::ShowIndexesContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitShowIndexes(SQLParser::ShowIndexesContext *context) = 0;
 
-    std::any visitLoadData(SQLParser::LoadDataContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitLoadData(SQLParser::LoadDataContext *context) = 0;
 
-    std::any visitDumpData(SQLParser::DumpDataContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitDumpData(SQLParser::DumpDataContext *context) = 0;
 
-    std::any visitCreateTable(SQLParser::CreateTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitCreateTable(SQLParser::CreateTableContext *context) = 0;
 
-    std::any visitDropTable(SQLParser::DropTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitDropTable(SQLParser::DropTableContext *context) = 0;
 
-    std::any visitDescribeTable(SQLParser::DescribeTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitDescribeTable(SQLParser::DescribeTableContext *context) = 0;
 
-    std::any visitInsertIntoTable(SQLParser::InsertIntoTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitInsertIntoTable(SQLParser::InsertIntoTableContext *context) = 0;
 
-    std::any visitDeleteFromTable(SQLParser::DeleteFromTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitDeleteFromTable(SQLParser::DeleteFromTableContext *context) = 0;
 
-    std::any visitUpdateTable(SQLParser::UpdateTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitUpdateTable(SQLParser::UpdateTableContext *context) = 0;
 
-    std::any visitSelectTable_(SQLParser::SelectTable_Context *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitSelectTable_(SQLParser::SelectTable_Context *context) = 0;
 
-    std::any visitSelectTable(SQLParser::SelectTableContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitSelectTable(SQLParser::SelectTableContext *context) = 0;
 
-    std::any visitAlterAddIndex(SQLParser::AlterAddIndexContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterAddIndex(SQLParser::AlterAddIndexContext *context) = 0;
 
-    std::any visitAlterDropIndex(SQLParser::AlterDropIndexContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterDropIndex(SQLParser::AlterDropIndexContext *context) = 0;
 
-    std::any visitAlterTableDropPk(SQLParser::AlterTableDropPkContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterTableDropPk(SQLParser::AlterTableDropPkContext *context) = 0;
 
-    std::any visitAlterTableDropForeignKey(SQLParser::AlterTableDropForeignKeyContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterTableDropForeignKey(SQLParser::AlterTableDropForeignKeyContext *context) = 0;
 
-    std::any visitAlterTableAddPk(SQLParser::AlterTableAddPkContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterTableAddPk(SQLParser::AlterTableAddPkContext *context) = 0;
 
-    std::any visitAlterTableAddForeignKey(SQLParser::AlterTableAddForeignKeyContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterTableAddForeignKey(SQLParser::AlterTableAddForeignKeyContext *context) = 0;
 
-    std::any visitAlterTableAddUnique(SQLParser::AlterTableAddUniqueContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAlterTableAddUnique(SQLParser::AlterTableAddUniqueContext *context) = 0;
 
-    std::any visitFieldList(SQLParser::FieldListContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitFieldList(SQLParser::FieldListContext *context) = 0;
 
-    std::any visitNormalField(SQLParser::NormalFieldContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitNormalField(SQLParser::NormalFieldContext *context) = 0;
 
-    std::any visitPrimaryKeyField(SQLParser::PrimaryKeyFieldContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitPrimaryKeyField(SQLParser::PrimaryKeyFieldContext *context) = 0;
 
-    std::any visitForeignKeyField(SQLParser::ForeignKeyFieldContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitForeignKeyField(SQLParser::ForeignKeyFieldContext *context) = 0;
 
-    std::any visitType(SQLParser::TypeContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitType(SQLParser::TypeContext *context) = 0;
 
-    std::any visitValueLists(SQLParser::ValueListsContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitValueLists(SQLParser::ValueListsContext *context) = 0;
 
-    std::any visitValueList(SQLParser::ValueListContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitValueList(SQLParser::ValueListContext *context) = 0;
 
-    std::any visitValue(SQLParser::ValueContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitValue(SQLParser::ValueContext *context) = 0;
 
-    std::any visitWhereAndClause(SQLParser::WhereAndClauseContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereAndClause(SQLParser::WhereAndClauseContext *context) = 0;
 
-    std::any visitWhereOperatorExpression(SQLParser::WhereOperatorExpressionContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereOperatorExpression(SQLParser::WhereOperatorExpressionContext *context) = 0;
 
-    std::any visitWhereOperatorSelect(SQLParser::WhereOperatorSelectContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereOperatorSelect(SQLParser::WhereOperatorSelectContext *context) = 0;
 
-    std::any visitWhereNull(SQLParser::WhereNullContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereNull(SQLParser::WhereNullContext *context) = 0;
 
-    std::any visitWhereInList(SQLParser::WhereInListContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereInList(SQLParser::WhereInListContext *context) = 0;
 
-    std::any visitWhereInSelect(SQLParser::WhereInSelectContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereInSelect(SQLParser::WhereInSelectContext *context) = 0;
 
-    std::any visitWhereLikeString(SQLParser::WhereLikeStringContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitWhereLikeString(SQLParser::WhereLikeStringContext *context) = 0;
 
-    std::any visitColumn(SQLParser::ColumnContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitColumn(SQLParser::ColumnContext *context) = 0;
 
-    std::any visitExpression(SQLParser::ExpressionContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitExpression(SQLParser::ExpressionContext *context) = 0;
 
-    std::any visitSetClause(SQLParser::SetClauseContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitSetClause(SQLParser::SetClauseContext *context) = 0;
 
-    std::any visitSelectors(SQLParser::SelectorsContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitSelectors(SQLParser::SelectorsContext *context) = 0;
 
-    std::any visitSelector(SQLParser::SelectorContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitSelector(SQLParser::SelectorContext *context) = 0;
 
-    std::any visitIdentifiers(SQLParser::IdentifiersContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitIdentifiers(SQLParser::IdentifiersContext *context) = 0;
 
-    std::any visitOperator_(SQLParser::Operator_Context *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitOperator_(SQLParser::Operator_Context *context) = 0;
 
-    std::any visitAggregator(SQLParser::AggregatorContext *context) {
-        return visitChildren(context);
-    }
+    virtual std::any visitAggregator(SQLParser::AggregatorContext *context) = 0;
 
 
 };

@@ -5,6 +5,8 @@
 #ifndef SQLDB_PARSER_H
 #define SQLDB_PARSER_H
 
-extern void parse(const std::string& command);
+#include "optree.h"
+
+extern Op *parse(const std::string& command);
 
 #endif //SQLDB_PARSER_H

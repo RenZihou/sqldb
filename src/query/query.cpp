@@ -16,14 +16,23 @@ void print_prompt() {
 
 int start_loop() {
     std::string command;
+    Op *op;
     while (true) {
         // read
+        op = nullptr;
         print_prompt();
         getline(std::cin, command);
         // parse
-        if (command == "quit") break;  // handle meta-commands
-        else parse(command);  // sql commands
+        if (command == "QUIT") break;  // handle meta-commands
+        else op = parse(command);  // sql commands
+        if (op == nullptr) {
+            std::cerr << "SyntaxError raised when parsing `" << command << "`" << std::endl;
+            continue;
+        }
         // execute
+        if (op->getType() == OpType::DB_CREATE) {
+            std::cout << "DB_CREATE " << dynamic_cast<OpDbCreate *>(op)->getDbName() << std::endl;
+        }
         // print
     }
     return 0;

@@ -6,13 +6,15 @@
 #include "parser.h"
 #include "SQLLexer.h"
 #include "SQLParser.h"
-#include "SQLVisitor.h"
+#include "visitor.h"
 
-void parse(const std::string& command) {
+Op *parse(const std::string& command) {
     antlr4::ANTLRInputStream input(command);
     SQLLexer lexer(&input);
     antlr4::CommonTokenStream tokens(&lexer);
     SQLParser parser(&tokens);
     auto tree = parser.program();
-    std::cout << tree->getText() << std::endl;
+    Visitor visitor{};
+    auto result = visitor.visit(tree);
+    return std::any_cast<Op *>(result);
 }
