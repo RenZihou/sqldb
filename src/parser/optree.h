@@ -7,6 +7,9 @@
 
 #include <string>
 #include <utility>
+#include <vector>
+
+#include "../table/table.h"
 
 enum OpType {
     DB_CREATE,
@@ -25,6 +28,22 @@ enum OpType {
     UNKNOWN
 };
 
+struct Field {
+    std::string name;
+    std::string type;
+    std::string default_value;
+    bool not_null;
+};
+
+struct Column {
+    std::string name;
+    ColumnType type;
+    int length;
+    bool not_null;
+    char *default_value;
+
+};
+
 
 class Op {
 protected:
@@ -32,9 +51,16 @@ protected:
     Op *_next = nullptr;
 public:
     Op() = default;
+
     virtual ~Op() = default;
+
     OpType getType() const { return this->_type; }
-    Op *setNext(Op *next) { this->_next = next; return this->_next; }
+
+    Op *setNext(Op *next) {
+        this->_next = next;
+        return this->_next;
+    }
+
     Op *getNext() const { return this->_next; }
 };
 
@@ -42,7 +68,9 @@ class OpDbCreate : public Op {
 private:
     std::string name;
 public:
-    explicit OpDbCreate(std::string name) : Op(), name(std::move(name)) { this->_type = OpType::DB_CREATE; }
+    explicit OpDbCreate(std::string name)
+            : Op(), name(std::move(name)) { this->_type = OpType::DB_CREATE; }
+
     std::string getDbName() { return this->name; }
 };
 
@@ -50,8 +78,19 @@ class OpDbUse : public Op {
 private:
     std::string name;
 public:
-    explicit OpDbUse(std::string name) : Op(), name(std::move(name)) { this->_type = OpType::DB_USE; }
+    explicit OpDbUse(std::string name)
+            : Op(), name(std::move(name)) { this->_type = OpType::DB_USE; }
+
     std::string getDbName() { return this->name; }
+};
+
+class OpTableCreate : public Op {
+private:
+    std::string name;
+    std::vector<Column> columns;
+public:
+    explicit OpTableCreate(std::string name, std::vector<Column> columns)
+            : name(std::move(name)), columns(std::move(columns)) {}
 };
 
 class OpUnknown : public Op {

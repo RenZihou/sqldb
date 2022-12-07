@@ -6,6 +6,7 @@
 #include <string>
 
 #include "query.h"
+#include "execute.h"
 #include "../parser/parser.h"
 
 
@@ -19,20 +20,18 @@ int start_loop() {
     Op *op;
     while (true) {
         // read
-        op = nullptr;
         print_prompt();
         getline(std::cin, command);
         // parse
         if (command == "QUIT") break;  // handle meta-commands
         else op = parse(command);  // sql commands
         if (op == nullptr) {
-            std::cerr << "SyntaxError raised when parsing `" << command << "`" << std::endl;
+            std::cerr << "Unexpected error occurred when parsing `" << command << "`" << std::endl;
             continue;
         }
+        // TODO logical optimization here
         // execute
-        if (op->getType() == OpType::DB_CREATE) {
-            std::cout << "DB_CREATE " << dynamic_cast<OpDbCreate *>(op)->getDbName() << std::endl;
-        }
+        execute(op);
         // print
     }
     return 0;

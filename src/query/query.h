@@ -6,7 +6,7 @@
 #define QUERY_H_
 
 
-extern int start_loop();
+int start_loop();
 
 
 #endif  // QUERY_H_

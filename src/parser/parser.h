@@ -7,6 +7,6 @@
 
 #include "optree.h"
 
-extern Op *parse(const std::string& command);
+Op *parse(const std::string& command);
 
 #endif //SQLDB_PARSER_H
