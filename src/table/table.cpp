@@ -3,7 +3,9 @@
 // @Author: RenZihou
 
 #include <cstring>
+#include <iostream>
 #include <utility>
+
 #include "table.h"
 #include "../pagefile/buffer_manager.h"
 
@@ -14,12 +16,13 @@ Table::Table(std::string table_name) : header(new TableHeader()), name(std::move
     int index;
     while (unread > PAGE_SIZE) {
         index = BufferManager::bm().getPage(this->name, pid);
-        memcpy(this->header + PAGE_SIZE * pid, BufferManager::bm().readBuffer(index), PAGE_SIZE);
+        memcpy((char *) this->header + PAGE_SIZE * pid, BufferManager::bm().readBuffer(index),
+               PAGE_SIZE);
         unread -= PAGE_SIZE;
         ++pid;
     }
     index = BufferManager::bm().getPage(this->name, pid);
-    memcpy(this->header + PAGE_SIZE * pid, BufferManager::bm().readBuffer(index), unread);
+    memcpy((char *) this->header + PAGE_SIZE * pid, BufferManager::bm().readBuffer(index), unread);
 }
 
 Table::~Table() {
@@ -28,13 +31,14 @@ Table::~Table() {
     int index;
     while (unread > PAGE_SIZE) {
         index = BufferManager::bm().getPage(this->name, pid);
-        memcpy(BufferManager::bm().readBuffer(index), this->header + PAGE_SIZE * pid, PAGE_SIZE);
+        memcpy(BufferManager::bm().readBuffer(index), (char *) this->header + PAGE_SIZE * pid,
+               PAGE_SIZE);
         BufferManager::bm().markDirty(index);
         unread -= PAGE_SIZE;
         ++pid;
     }
     index = BufferManager::bm().getPage(this->name, pid);
-    memcpy(BufferManager::bm().readBuffer(index), this->header + PAGE_SIZE * pid, unread);
+    memcpy(BufferManager::bm().readBuffer(index), (char *) this->header + PAGE_SIZE * pid, unread);
     BufferManager::bm().markDirty(index);
     delete this->header;
 }
@@ -45,7 +49,7 @@ int Table::createTable(const std::string &name) {
 
 int Table::addColumn(const Column &column, const std::string &after) {
     if (this->header->columns >= MAX_COLUMN) {
-        std::cerr << "reached max column number" << std::endl;
+        std::cerr << "reached max column number (" << MAX_COLUMN << ")" << std::endl;
         return -1;
     }
     int index = -1;
@@ -68,12 +72,40 @@ int Table::addColumn(const Column &column, const std::string &after) {
         this->header->column_info[i].offset += column.length;
     }
     memcpy(this->header->column_info[index].name, column.name.c_str(), column.name.length());
+    this->header->column_info[index].flags = column.flags;
     this->header->column_info[index].type = column.type;
     this->header->column_info[index].length = column.length;
     this->header->column_info[index].offset =
             index == 0 ? 0 : this->header->column_info[index - 1].offset
                              + this->header->column_info[index - 1].length;
     ++this->header->columns;
+    if (column.flags & FLAG_HAS_DEFAULT) {
+        // move defaults to the right
+        unsigned offset_begin = this->header->column_info[index].offset;
+        unsigned offset_end = offset_begin + this->header->column_info[index].length;
+        memcpy(this->header->defaults + offset_end,
+               this->header->defaults + offset_begin,
+               sizeof(this->header->defaults) - offset_end);
+        // set new default
+        int value_i;
+        float value_f;
+        switch (column.type) {
+            case ColumnType::INT:
+                value_i = std::stoi(column.default_value);
+                memcpy(this->header->defaults + offset_begin, &value_i, sizeof(int));
+                break;
+            case ColumnType::FLOAT:
+                value_f = std::stof(column.default_value);
+                memcpy(this->header->defaults + offset_begin, &value_f, sizeof(float));
+                break;
+            case ColumnType::VARCHAR:
+                memcpy(this->header->defaults + offset_begin, column.default_value.c_str(),
+                       column.length);
+                break;
+            default:
+                break;
+        }
+    }
     // TODO modify data (this function should only be called when creating table for now)
     return 0;
 }

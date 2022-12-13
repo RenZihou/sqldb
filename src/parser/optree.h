@@ -77,6 +77,17 @@ public:
     std::vector<Column> getTableColumns() { return this->columns; }
 };
 
+class OpTableInsert : public Op {
+private:
+    std::string name;
+    std::vector<std::string> values;
+public:
+    explicit OpTableInsert(std::string name, std::vector<std::string> values)
+            : Op(OpType::TABLE_INSERT), name(std::move(name)), values(std::move(values)) {}
+    std::string getTableName() { return this->name; }
+    std::vector<std::string> getValues() { return this->values; }
+};
+
 class OpUnknown : public Op {
 public:
     explicit OpUnknown() : Op(OpType::UNKNOWN) {}

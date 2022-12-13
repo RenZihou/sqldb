@@ -4,5 +4,11 @@
 
 // this file do nothing
 
-#include "hashmap.h"
-#include "linklist.h"
+#include <cassert>
+
+#include "constants.h"
+
+void check_define() {
+    assert(MAX_RECORD_SIZE <= PAGE_SIZE - sizeof(unsigned));
+    assert(MAX_COLUMN <= 8 * sizeof(unsigned));
+}

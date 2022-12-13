@@ -60,15 +60,16 @@ std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
 
 std::any Visitor::visitNormalField(SQLParser::NormalFieldContext *ctx) {
     std::string name = ctx->Identifier()->getText();
+    char flags = 0;
+    flags |= ctx->value() ? FLAG_HAS_DEFAULT : 0;
+    flags |= ctx->Null() ? FLAG_NOT_NULL : 0;
     auto type = std::any_cast<std::tuple<ColumnType, unsigned>>(visit(ctx->type()));
     std::string default_value;
     if (ctx->value() != nullptr) {  // default value
         default_value = std::any_cast<std::string>(visit(ctx->value()));
-    } else {
-        default_value = "";
     }
     return Column{.name=name, .type=std::get<0>(type), .length=std::get<1>(type),
-            .not_null=(ctx->Null() != nullptr), .default_value=default_value};
+            .flags=flags, .default_value=default_value};
 }
 
 std::any Visitor::visitType(SQLParser::TypeContext *ctx) {

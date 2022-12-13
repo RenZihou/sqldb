@@ -16,7 +16,7 @@ void execute(Op *op) {
         auto columns = std::move(op_->getTableColumns());
         for (auto it = columns.rbegin(); it != columns.rend(); ++it) {
             table->addColumn(*it, "");
-        }  // range based loop is not supported by gcc now
+        }  // range based loop is not supported by gcc for now
         delete table;
         return;
     }

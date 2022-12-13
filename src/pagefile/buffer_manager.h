@@ -6,69 +6,49 @@
 #define BUFFER_MANAGER_H_
 
 #include <string>
-#include "./file_manager.h"
-#include "../util/hashmap.h"
-#include "../util/find_replace.h"
-#include "../util/linklist.h"
 
+#include "file_manager.h"
+#include "hashmap.h"
+#include "lru.h"
 
 class BufferManager {
 private:
-    int last;
     PageHashMap *hash;
-    FindReplace *replace;
-    //MyLinkList* bpl;
+    LRU *lru;
     unsigned *dirty;
     BufType *addr;  // page buffer address
 
-    static BufType _allocMem() {
-        return new unsigned int[(PAGE_SIZE >> 2)];
-    }
+    /**
+     * @return buffer address
+     * @description alloc memory for new buffer
+     */
+    static BufType _allocMem();
 
-    int fetchPage(const std::string &filename, unsigned pageID) {
-        BufType buf;
-        int index = replace->find();
-        buf = addr[index];
-        if (buf == nullptr) {
-            buf = BufferManager::_allocMem();
-            addr[index] = buf;
-        } else {
-            if (dirty[index >> 5] & (1 << (index & 31))) {
-                Page oldPage;
-                hash->getKey(index, oldPage);
-                FileManager::fm().writePage(oldPage.filename, oldPage.pageID, buf);
-                dirty[index >> 5] &= (~(1 << (index & 31)));
-            }
-        }
-        FileManager::fm().readPage(filename, pageID, buf);
-        this->hash->replace(index, Page{.filename=filename, .pageID=pageID});
-        return index;
-    }
+    /**
+     * @param filename filename relative to working directory
+     * @param pageID page id
+     * @return buffer index
+     * @description read new page from disk to buffer
+     */
+    int _fetchPage(const std::string &filename, unsigned pageID);
 
     BufferManager() : hash(new PageHashMap(MAX_BUF_PAGE)),
-                      replace(new FindReplace(MAX_BUF_PAGE)),
+                      lru(new LRU(MAX_BUF_PAGE)),
                       dirty(new unsigned[(MAX_BUF_PAGE >> 5) + 1]{}),
-                      addr(new BufType[MAX_BUF_PAGE]{}),
-                      last(-1) {}
+                      addr(new BufType[MAX_BUF_PAGE]{}) {}
 
     ~BufferManager() {
         // write back all dirty pages
         for (int i = 0; i < MAX_BUF_PAGE; ++i) {
-            if (dirty[i >> 5] & (1 << (i & 31))) {
-                Page oldPage;
-                hash->getKey(i, oldPage);
-                FileManager::fm().writePage(oldPage.filename, oldPage.pageID, addr[i]);
-                dirty[i >> 5] &= (~(1 << (i & 31)));
-            }
+            this->writeBack(i);
         }
         delete hash;
-        delete replace;
+        delete lru;
         delete[] dirty;
         for (int i = 0; i < MAX_BUF_PAGE; ++i) {
             delete[] addr[i];
         }
         delete[] addr;
-
     }
 
 public:
@@ -87,90 +67,48 @@ public:
      * @return 0 for success, -1 for error
      * @description create file
      */
-    static int createFile(const std::string &filename) {
-        return FileManager::fm().createFile(filename);
-    }
+    static int createFile(const std::string &filename);
 
     /**
      * @param filename filename relative to working directory
      * @param pageID page id
-     * @return index of page buffer
-     * @description allocate new page
+     * @return buffer index
+     * @description allocate new page, use only when you are sure that the page is not in buffer
      */
-    int allocPage(const std::string &filename, unsigned pageID) {
-        int index = fetchPage(filename, pageID);
-//        if (ifRead) {
-//            FileManager::fm().readPage(filename, pageID, this->addr[index]);
-//        }
-        return index;
-    }
+    int allocPage(const std::string &filename, unsigned pageID);
 
     /**
-     * @param filename filename
+     * @param filename filename relative to working directory
      * @param pageID page id
-     * @return index of page buffer
-     * @description get buffer index of specified page, fetch the page if not in buffer
+     * @return buffer index
+     * @description get buffer index of specified page, will fetch the page if not in buffer
      */
-    int getPage(const std::string &filename, unsigned pageID) {
-        int index = this->hash->get(Page{.filename=filename, .pageID=pageID});
-        if (index == -1) index = this->fetchPage(filename, pageID);
-        return index;
-    }
+    int getPage(const std::string &filename, unsigned pageID);
 
     /**
-     * @param index index of page buffer
+     * @param index buffer index
      * @return buffer address
      * @description access buffer through index, update LRU
      */
-    BufType readBuffer(int index) {
-        if (index != this->last) {  // TODO last?
-            this->replace->access(index);
-            this->last = index;
-        }
-        return this->addr[index];
-    }
+    BufType readBuffer(int index);
 
     /**
-     * @param index index of page buffer
+     * @param index buffer index
      * @description mark buffer as dirty
      */
-    void markDirty(int index) {
-        this->dirty[index >> 5] |= (1 << (index & 31));
-        readBuffer(index);
-    }
+    void markDirty(int index);
 
     /**
-     * @param index index of buffer
+     * @param index buffer index
      * @description release buffer without writing back
      */
-    void release(int index) {
-        this->dirty[index >> 5] &= (~(1 << (index & 31)));
-        this->replace->free(index);
-        this->hash->remove(index);
-    }
+    void release(int index);
 
     /**
-     * @param index index of buffer
+     * @param index buffer index
      * @description release buffer and write back if dirty
      */
-    void writeBack(int index) {
-        if (this->dirty[index >> 5] & (1 << (index & 31))) {
-            Page p;
-            this->hash->getKey(index, p);
-            FileManager::fm().writePage(p.filename, p.pageID, addr[index]);
-        }
-        this->release(index);
-    }
-
-    /*
-     * @函数名close
-     * 功能:将所有缓存页面归还给缓存管理器，归还前需要根据脏页标记决定是否写到对应的文件页面中
-     */
-    [[deprecated]] void closeFile(std::string filename) {
-        for (int i = 0; i < MAX_BUF_PAGE; ++i) {
-            writeBack(i);
-        }
-    }
+    void writeBack(int index);
 };
 
 #endif  // BUFFER_MANAGER_H_

@@ -22,13 +22,13 @@ struct Column {
     std::string name;
     ColumnType type;
     unsigned length;
-    bool not_null;
+    char flags;
     std::string default_value;
-
 };
 
 struct ColumnInfo {
     char name[MAX_COLUMN_NAME_LEN];
+    char flags;
     ColumnType type;
     unsigned length;
     unsigned offset;
@@ -39,16 +39,15 @@ struct TableHeader {
     unsigned pages;
     unsigned next_empty;  // next empty slot offset in bytes
     ColumnInfo column_info[MAX_COLUMN];
+    char defaults[MAX_RECORD_SIZE];
     // TODO constraints
 };
 
 
 class Table {
 private:
-//    std::unique_ptr<TableHeader> header;
     TableHeader *header;
     const std::string name;
-    const int header_pages = sizeof(TableHeader) / PAGE_SIZE + 1;
 
 public:
     explicit Table(std::string table_name);

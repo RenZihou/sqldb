@@ -6,7 +6,7 @@
 #define HASHMAP_H_
 
 #include <string>
-#include "./constants.h"
+#include "../util/constants.h"
 
 template<typename KT>
 class HashMap {
