@@ -22,7 +22,7 @@ private:
     int _openFile(const std::string &filename) {
         int f = open((this->wd + "/" + filename).c_str(), O_RDWR);
         if (f == -1) {
-            std::cerr << "failed to open file" << f << std::endl;
+            std::cerr << "failed to open file " << filename << std::endl;
             return -1;
         }
         fd->push(filename, f);
@@ -30,6 +30,8 @@ private:
     }
 
     FileManager() : fd(new StringHashMap(MAX_OPEN_FILE)) {}
+
+    ~FileManager() { delete fd; }
 
 public:
 //    explicit FileManager(std::string wd) : wd(std::move(wd)), fd(new SIMap) {}
@@ -59,7 +61,7 @@ public:
     int createFile(const std::string &filename) {
         int f = creat((this->wd + "/" + filename).c_str(), S_IRWXU);
         if (f == -1) {
-            std::cerr << "failed to create file " << f << std::endl;
+            std::cerr << "failed to create file " << filename << std::endl;
             return -1;
         }
         close(f);
@@ -82,12 +84,12 @@ public:
         off_t offset = pageID << PAGE_SIZE_IDX;  // byte offset of page in file
         off_t error = lseek(f, offset, SEEK_SET);
         if (error == -1) {
-            std::cerr << "failed to seek to " << offset << " in file " << f << std::endl;
+            std::cerr << "failed to seek to " << offset << " in file " << filename << std::endl;
             return -1;
         }
         error = write(f, (void *) buf, PAGE_SIZE);
         if (error == -1) {
-            std::cerr << "failed to write to file " << f << std::endl;
+            std::cerr << "failed to write to file " << filename << std::endl;
             return -1;
         }
         return 0;
@@ -109,12 +111,12 @@ public:
         off_t offset = pageID << PAGE_SIZE_IDX;
         off_t error = lseek(f, offset, SEEK_SET);
         if (error == -1) {
-            std::cerr << "failed to seek to " << offset << " in file " << f << std::endl;
+            std::cerr << "failed to seek to " << offset << " in file " << filename << std::endl;
             return -1;
         }
         error = read(f, (void *) buf, PAGE_SIZE);
         if (error == -1) {
-            std::cerr << "failed to read from file " << f << std::endl;
+            std::cerr << "failed to read from file " << filename << std::endl;
             return -1;
         }
         return 0;
@@ -129,10 +131,6 @@ public:
         int f = this->fd->remove(filename);
         close(f);
         return 0;
-    }
-
-    ~FileManager() {
-        delete fd;
     }
 };
 

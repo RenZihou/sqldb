@@ -7,22 +7,75 @@
 #include "table.h"
 #include "../pagefile/buffer_manager.h"
 
-Table::Table(std::string table_name) : header(new TableHeader), name(std::move(table_name)) {
+Table::Table(std::string table_name) : header(new TableHeader()), name(std::move(table_name)) {
     // read table header
-    for (int i = 0; i < this->header_pages; ++i) {
-        int index = BufferManager::bm().getPage(this->name, i);
-        memcpy(this->header + PAGE_SIZE * i, BufferManager::bm().readBuffer(index), PAGE_SIZE);
+    int unread = sizeof(TableHeader);
+    int pid = 0;
+    int index;
+    while (unread > PAGE_SIZE) {
+        index = BufferManager::bm().getPage(this->name, pid);
+        memcpy(this->header + PAGE_SIZE * pid, BufferManager::bm().readBuffer(index), PAGE_SIZE);
+        unread -= PAGE_SIZE;
+        ++pid;
     }
+    index = BufferManager::bm().getPage(this->name, pid);
+    memcpy(this->header + PAGE_SIZE * pid, BufferManager::bm().readBuffer(index), unread);
 }
 
-// TODO write back header (no matter whether changed)
 Table::~Table() {
-    for (int i = 0; i < this->header_pages; ++i) {
-        int index = BufferManager::bm().getPage(this->name, i);
-        memcpy(BufferManager::bm().readBuffer(index), this->header + PAGE_SIZE * i, PAGE_SIZE);
+    int unread = sizeof(TableHeader);
+    int pid = 0;
+    int index;
+    while (unread > PAGE_SIZE) {
+        index = BufferManager::bm().getPage(this->name, pid);
+        memcpy(BufferManager::bm().readBuffer(index), this->header + PAGE_SIZE * pid, PAGE_SIZE);
         BufferManager::bm().markDirty(index);
+        unread -= PAGE_SIZE;
+        ++pid;
     }
-    delete header;
+    index = BufferManager::bm().getPage(this->name, pid);
+    memcpy(BufferManager::bm().readBuffer(index), this->header + PAGE_SIZE * pid, unread);
+    BufferManager::bm().markDirty(index);
+    delete this->header;
+}
+
+int Table::createTable(const std::string &name) {
+    return BufferManager::createFile(name);
+}
+
+int Table::addColumn(const Column &column, const std::string &after) {
+    if (this->header->columns >= MAX_COLUMN) {
+        std::cerr << "reached max column number" << std::endl;
+        return -1;
+    }
+    int index = -1;
+    if (after.empty()) index = 0;
+    else {
+        for (int i = 0; i < this->header->columns; ++i) {
+            if (this->header->column_info[i].name == after) {
+                index = i + 1;
+                break;
+            }
+        }
+    }
+    if (index == -1) {
+        std::cerr << "column " << after << " not found" << std::endl;
+        return -1;
+    }
+    // modify header
+    for (int i = static_cast<int>(this->header->columns); i > index; --i) {
+        this->header->column_info[i] = this->header->column_info[i - 1];
+        this->header->column_info[i].offset += column.length;
+    }
+    memcpy(this->header->column_info[index].name, column.name.c_str(), column.name.length());
+    this->header->column_info[index].type = column.type;
+    this->header->column_info[index].length = column.length;
+    this->header->column_info[index].offset =
+            index == 0 ? 0 : this->header->column_info[index - 1].offset
+                             + this->header->column_info[index - 1].length;
+    ++this->header->columns;
+    // TODO modify data (this function should only be called when creating table for now)
+    return 0;
 }
 
 void Table::insertRecord(void *data) {

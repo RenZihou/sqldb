@@ -5,13 +5,14 @@
 #ifndef OPTREE_H_
 #define OPTREE_H_
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "../table/table.h"
 
-enum OpType {
+enum class OpType {
     DB_CREATE,
     DB_DROP,
     DB_SHOW,
@@ -28,31 +29,14 @@ enum OpType {
     UNKNOWN
 };
 
-struct Field {
-    std::string name;
-    std::string type;
-    std::string default_value;
-    bool not_null;
-};
-
-struct Column {
-    std::string name;
-    ColumnType type;
-    int length;
-    bool not_null;
-    char *default_value;
-
-};
-
-
 class Op {
 protected:
-    OpType _type = OpType::UNKNOWN;
+    OpType _type;
     Op *_next = nullptr;
 public:
-    Op() = default;
+    explicit Op(OpType type) : _type(type) {}
 
-    virtual ~Op() = default;
+    virtual ~Op() { delete _next; }
 
     OpType getType() const { return this->_type; }
 
@@ -68,8 +52,7 @@ class OpDbCreate : public Op {
 private:
     std::string name;
 public:
-    explicit OpDbCreate(std::string name)
-            : Op(), name(std::move(name)) { this->_type = OpType::DB_CREATE; }
+    explicit OpDbCreate(std::string name) : Op(OpType::DB_CREATE), name(std::move(name)) {}
 
     std::string getDbName() { return this->name; }
 };
@@ -78,8 +61,7 @@ class OpDbUse : public Op {
 private:
     std::string name;
 public:
-    explicit OpDbUse(std::string name)
-            : Op(), name(std::move(name)) { this->_type = OpType::DB_USE; }
+    explicit OpDbUse(std::string name) : Op(OpType::DB_USE), name(std::move(name)) {}
 
     std::string getDbName() { return this->name; }
 };
@@ -90,12 +72,14 @@ private:
     std::vector<Column> columns;
 public:
     explicit OpTableCreate(std::string name, std::vector<Column> columns)
-            : name(std::move(name)), columns(std::move(columns)) {}
+            : Op(OpType::TABLE_CREATE), name(std::move(name)), columns(std::move(columns)) {}
+    std::string getTableName() { return this->name; }
+    std::vector<Column> getTableColumns() { return this->columns; }
 };
 
 class OpUnknown : public Op {
 public:
-    explicit OpUnknown() : Op() { this->_type = OpType::UNKNOWN; }
+    explicit OpUnknown() : Op(OpType::UNKNOWN) {}
 };
 
 

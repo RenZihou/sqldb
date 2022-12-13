@@ -23,14 +23,8 @@
 #define PAGE_SIZE_IDX 13  // log2(PAGE_SIZE)
 #define PAGE_SIZE (1 << PAGE_SIZE_IDX)  // page size in bytes
 #define PAGE_SIZE_MASK (PAGE_SIZE - 1)  // page size mask
-#define MAX_FMT_INT_NUM 128
-//#define BUF_PAGE_NUM 65536
 #define MAX_OPEN_FILE 128  // max open file number
-//#define MAX_TYPE_NUM 256
-/*
- * 缓存中页面个数上限
- */
-#define CAP 60000
+#define MAX_BUF_PAGE 65536  // max page number in buffer
 
 #define HASH_OFFSET 2166136261  // hash init value
 #define HASH_PRIME 16777619  // hash multiplier

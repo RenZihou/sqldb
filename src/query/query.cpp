@@ -24,7 +24,7 @@ int start_loop() {
         getline(std::cin, command);
         // parse
         if (command == "QUIT") break;  // handle meta-commands
-        else op = parse(command);  // sql commands
+        op = parse(command);  // sql commands
         if (op == nullptr) {
             std::cerr << "Unexpected error occurred when parsing `" << command << "`" << std::endl;
             continue;

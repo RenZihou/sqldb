@@ -7,6 +7,10 @@
 
 #include "../parser/optree.h"
 
+/**
+ * @param op operator tree
+ * @description execute the given operator tree
+ */
 void execute(Op *op);
 
 #endif  // EXECUTE_H_

@@ -40,13 +40,35 @@ private:
                 dirty[index >> 5] &= (~(1 << (index & 31)));
             }
         }
+        FileManager::fm().readPage(filename, pageID, buf);
         this->hash->replace(index, Page{.filename=filename, .pageID=pageID});
         return index;
     }
 
-    BufferManager() : hash(new PageHashMap(CAP)), dirty(new unsigned [(CAP >> 5) + 1] {}), addr(new BufType[CAP] {}) {
-        last = -1;
-        replace = new FindReplace(CAP);
+    BufferManager() : hash(new PageHashMap(MAX_BUF_PAGE)),
+                      replace(new FindReplace(MAX_BUF_PAGE)),
+                      dirty(new unsigned[(MAX_BUF_PAGE >> 5) + 1]{}),
+                      addr(new BufType[MAX_BUF_PAGE]{}),
+                      last(-1) {}
+
+    ~BufferManager() {
+        // write back all dirty pages
+        for (int i = 0; i < MAX_BUF_PAGE; ++i) {
+            if (dirty[i >> 5] & (1 << (i & 31))) {
+                Page oldPage;
+                hash->getKey(i, oldPage);
+                FileManager::fm().writePage(oldPage.filename, oldPage.pageID, addr[i]);
+                dirty[i >> 5] &= (~(1 << (i & 31)));
+            }
+        }
+        delete hash;
+        delete replace;
+        delete[] dirty;
+        for (int i = 0; i < MAX_BUF_PAGE; ++i) {
+            delete[] addr[i];
+        }
+        delete[] addr;
+
     }
 
 public:
@@ -145,7 +167,7 @@ public:
      * 功能:将所有缓存页面归还给缓存管理器，归还前需要根据脏页标记决定是否写到对应的文件页面中
      */
     [[deprecated]] void closeFile(std::string filename) {
-        for (int i = 0; i < CAP; ++i) {
+        for (int i = 0; i < MAX_BUF_PAGE; ++i) {
             writeBack(i);
         }
     }

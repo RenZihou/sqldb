@@ -2,11 +2,16 @@
 // -*- encoding: utf-8 -*-
 // @Author: RenZihou
 
-#ifndef SQLDB_PARSER_H
-#define SQLDB_PARSER_H
+#ifndef PARSER_H_
+#define PARSER_H_
 
 #include "optree.h"
 
+/**
+ * @param command user-input sql command
+ * @return operator tree
+ * @description parse the given sql command
+ */
 Op *parse(const std::string& command);
 
-#endif //SQLDB_PARSER_H
+#endif  // PARSER_H_

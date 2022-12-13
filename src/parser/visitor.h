@@ -24,6 +24,10 @@ public:
 
     std::any visitNormalField(SQLParser::NormalFieldContext *ctx) override;
 
+    std::any visitType(SQLParser::TypeContext *ctx) override;
+
+    std::any visitValue(SQLParser::ValueContext *ctx) override;
+
     std::any visitSelectors(SQLParser::SelectorsContext *ctx) override;
 
     std::any visitSelector(SQLParser::SelectorContext *ctx) override;

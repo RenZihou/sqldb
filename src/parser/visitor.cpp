@@ -6,12 +6,15 @@
 #include "visitor.h"
 
 std::any Visitor::visitProgram(SQLParser::ProgramContext *ctx) {
-    Op *root = new Op();
+    Op *root = new Op(OpType::UNKNOWN);
     Op *top = root;
     for (auto &stmt: ctx->statement()) {
         top = top->setNext(std::any_cast<Op *>(visit(stmt)));
     }
-    return root->getNext();
+    Op *ret = root->getNext();
+    root->setNext(nullptr);
+    delete root;
+    return ret;
 }
 
 std::any Visitor::visitStatement(SQLParser::StatementContext *ctx) {
@@ -57,8 +60,40 @@ std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
 
 std::any Visitor::visitNormalField(SQLParser::NormalFieldContext *ctx) {
     std::string name = ctx->Identifier()->getText();
-    std::string type = std::any_cast<std::string>(visit(ctx->type()));
+    auto type = std::any_cast<std::tuple<ColumnType, unsigned>>(visit(ctx->type()));
+    std::string default_value;
+    if (ctx->value() != nullptr) {  // default value
+        default_value = std::any_cast<std::string>(visit(ctx->value()));
+    } else {
+        default_value = "";
+    }
+    return Column{.name=name, .type=std::get<0>(type), .length=std::get<1>(type),
+            .not_null=(ctx->Null() != nullptr), .default_value=default_value};
+}
 
+std::any Visitor::visitType(SQLParser::TypeContext *ctx) {
+    if (ctx->getStart()->getText() == "INT")
+        return std::make_tuple(ColumnType::INT, 4u);
+    if (ctx->getStart()->getText() == "VARCHAR")
+        return std::make_tuple(ColumnType::VARCHAR,
+                               static_cast<unsigned>(std::stoi(ctx->Integer()->getText())));
+    if (ctx->getStart()->getText() == "FLOAT")
+        return std::make_tuple(ColumnType::FLOAT, 4u);
+    return std::make_tuple(ColumnType::UNKNOWN, 0u);
+}
+
+std::any Visitor::visitValue(SQLParser::ValueContext *ctx) {
+    if (ctx->Integer() != nullptr) {
+        return ctx->Integer()->getText();
+    } else if (ctx->Float() != nullptr) {
+        return ctx->Float()->getText();
+    } else if (ctx->String() != nullptr) {
+        std::string with_quote = ctx->String()->getText();
+        return with_quote.substr(1, with_quote.length() - 2);
+    } else if (ctx->Null() != nullptr) {
+        return "";
+    }
+    return "";
 }
 
 std::any Visitor::visitSelectors(SQLParser::SelectorsContext *ctx) {

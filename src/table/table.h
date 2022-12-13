@@ -5,15 +5,26 @@
 #ifndef TABLE_H_
 #define TABLE_H_
 
+#include <memory>
 #include <string>
 #include "../util/constants.h"
 
 
-enum ColumnType {
+enum class ColumnType {
     INT,
     FLOAT,
     VARCHAR,
 //    DATE,
+    UNKNOWN,
+};
+
+struct Column {
+    std::string name;
+    ColumnType type;
+    unsigned length;
+    bool not_null;
+    std::string default_value;
+
 };
 
 struct ColumnInfo {
@@ -22,7 +33,6 @@ struct ColumnInfo {
     unsigned length;
     unsigned offset;
 };
-
 
 struct TableHeader {
     unsigned columns;
@@ -35,6 +45,7 @@ struct TableHeader {
 
 class Table {
 private:
+//    std::unique_ptr<TableHeader> header;
     TableHeader *header;
     const std::string name;
     const int header_pages = sizeof(TableHeader) / PAGE_SIZE + 1;
@@ -43,6 +54,21 @@ public:
     explicit Table(std::string table_name);
 
     ~Table();
+
+    /**
+     * @param table_name table name
+     * @return 0 for success, -1 for error
+     * @description create new table, this will create the table file only
+     */
+    static int createTable(const std::string &table_name);
+
+    /**
+     * @param column new column info
+     * @param after insert after which column, set "" to insert at the beginning
+     * @return 0 for success, -1 for error
+     * @description (ONLY CALL ON CREATE TABLE FOR NOW) add a new column to the table
+     */
+    int addColumn(const Column &column, const std::string &after);
 
     /**
      * @param data serialized data
