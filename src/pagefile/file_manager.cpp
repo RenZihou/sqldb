@@ -14,8 +14,7 @@ int FileManager::_openFile(const std::string &filename) {
         std::cerr << "failed to open file " << filename << std::endl;
         return -1;
     }
-    fd->push(filename, f);
-    return 0;
+    return f;
 }
 
 void FileManager::setWd(const std::string &wd_) {

@@ -8,6 +8,7 @@
 #include <string>
 #include "../util/constants.h"
 
+#include <iostream>
 template<typename KT>
 class HashMap {
 private:
@@ -97,7 +98,8 @@ private:
     }
 
 public:
-    using HashMap::HashMap;
+    explicit StringHashMap(int c) : HashMap(c) {}
+//    using HashMap::HashMap;
 };
 
 struct Page {
@@ -129,6 +131,8 @@ public:
     ~PageHashMap() {  // this will call HashMap::~HashMap() automatically
         delete[] reverse;
     }
+
+    // TODO override get (faster)
 
     /**
      * @param key key

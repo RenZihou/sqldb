@@ -38,6 +38,13 @@ std::any Visitor::visitCreateTable(SQLParser::CreateTableContext *ctx) {
     return dynamic_cast<Op *>(op);
 }
 
+std::any Visitor::visitInsertIntoTable(SQLParser::InsertIntoTableContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto values = std::any_cast<std::vector<std::vector<std::string>>>(visit(ctx->valueLists()));
+    auto *op = new OpTableInsert(name, values);
+    return dynamic_cast<Op *>(op);
+}
+
 std::any Visitor::visitSelectTable(SQLParser::SelectTableContext *ctx) {
     auto selectors = std::any_cast<std::vector<std::string>>(visit(ctx->selectors()));
     auto tables = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
@@ -81,6 +88,22 @@ std::any Visitor::visitType(SQLParser::TypeContext *ctx) {
     if (ctx->getStart()->getText() == "FLOAT")
         return std::make_tuple(ColumnType::FLOAT, 4u);
     return std::make_tuple(ColumnType::UNKNOWN, 0u);
+}
+
+std::any Visitor::visitValueLists(SQLParser::ValueListsContext *ctx) {
+    std::vector<std::vector<std::string>> values;
+    for (auto &valueList : ctx->valueList()) {
+        values.push_back(std::any_cast<std::vector<std::string>>(visit(valueList)));
+    }
+    return values;
+}
+
+std::any Visitor::visitValueList(SQLParser::ValueListContext *ctx) {
+    std::vector<std::string> values;
+    for (auto &value : ctx->value()) {
+        values.push_back(std::any_cast<std::string>(visit(value)));
+    }
+    return values;
 }
 
 std::any Visitor::visitValue(SQLParser::ValueContext *ctx) {

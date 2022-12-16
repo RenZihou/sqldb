@@ -80,12 +80,12 @@ public:
 class OpTableInsert : public Op {
 private:
     std::string name;
-    std::vector<std::string> values;
+    std::vector<std::vector<std::string>> values;
 public:
-    explicit OpTableInsert(std::string name, std::vector<std::string> values)
+    explicit OpTableInsert(std::string name, std::vector<std::vector<std::string>> values)
             : Op(OpType::TABLE_INSERT), name(std::move(name)), values(std::move(values)) {}
     std::string getTableName() { return this->name; }
-    std::vector<std::string> getValues() { return this->values; }
+    std::vector<std::vector<std::string>> getValues() { return this->values; }
 };
 
 class OpUnknown : public Op {

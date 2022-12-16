@@ -38,10 +38,6 @@ private:
                       addr(new BufType[MAX_BUF_PAGE]{}) {}
 
     ~BufferManager() {
-        // write back all dirty pages
-        for (int i = 0; i < MAX_BUF_PAGE; ++i) {
-            this->writeBack(i);
-        }
         delete hash;
         delete lru;
         delete[] dirty;
@@ -109,6 +105,11 @@ public:
      * @description release buffer and write back if dirty
      */
     void writeBack(int index);
+
+    /**
+     * @description write back all dirty pages
+     */
+    void writeBackAll();
 };
 
 #endif  // BUFFER_MANAGER_H_

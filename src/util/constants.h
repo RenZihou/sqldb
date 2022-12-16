@@ -47,6 +47,6 @@
 #define MAX_TB_NUM 31
 #define RELEASE 1
 
-typedef unsigned int* BufType;
+typedef char *BufType;
 
 #endif  // CONSTANTS_H_

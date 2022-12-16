@@ -7,6 +7,8 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+
 #include "../util/constants.h"
 
 
@@ -35,8 +37,8 @@ struct ColumnInfo {
 };
 
 struct TableHeader {
-    unsigned columns;
-    unsigned pages;
+    unsigned columns;  // number of columns
+    unsigned pages;  // number of pages (includes header)
     unsigned next_empty;  // next empty slot offset in bytes
     ColumnInfo column_info[MAX_COLUMN];
     char defaults[MAX_RECORD_SIZE];
@@ -49,6 +51,49 @@ private:
     TableHeader *header;
     const std::string name;
 
+    /**
+     * @return size of a record (excluding null flag) in bytes
+     */
+    [[nodiscard]] unsigned _getRecordSize() const;
+
+    /**
+     * @return size of a record (including null flag) in bytes
+     */
+    [[nodiscard]] unsigned _getRecordSizeWithFlag() const;
+
+    /**
+     * @param value value in string format
+     * @param type value type (column type)
+     * @param buffer buffer to write serialized data
+     * @param length data length (number of bytes to be written in buffer)
+     * @description serialize value to byte-form buffer
+     */
+    static void _serialize(const std::string &value, ColumnType type, char *buffer, unsigned length);
+
+    /**
+     * @param data serialized data including null flag
+     * @description insert a record into table
+     */
+    void _insertRecord(void *data);
+
+    /**
+     * @param record_offset record offset in bytes
+     * @description delete a record from table
+     */
+    void _deleteRecord(unsigned record_offset);
+
+    /**
+     * @param record_offset record offset in bytes
+     * @param data new serialized data including null flag
+     */
+    void _updateRecord(unsigned record_offset, void *data);
+
+    /**
+     * @param record_offset record offset in bytes
+     * @return record
+     */
+    void *_selectRecord(unsigned record_offset);
+
 public:
     explicit Table(std::string table_name);
 
@@ -56,10 +101,10 @@ public:
 
     /**
      * @param table_name table name
-     * @return 0 for success, -1 for error
+     * @return created table pointer, nullptr if created failed
      * @description create new table, this will create the table file only
      */
-    static int createTable(const std::string &table_name);
+    static Table *createTable(const std::string &table_name);
 
     /**
      * @param column new column info
@@ -69,29 +114,8 @@ public:
      */
     int addColumn(const Column &column, const std::string &after);
 
-    /**
-     * @param data serialized data
-     * @description insert a record into table
-     */
-    void insertRecord(void *data);
+    void insertRecord(const std::vector<std::string> &values);
 
-    /**
-     * @param record_offset record offset in bytes
-     * @description delete a record from table
-     */
-    void deleteRecord(unsigned record_offset);
-
-    /**
-     * @param record_offset record offset in bytes
-     * @param data new serialized data
-     */
-    void updateRecord(unsigned record_offset, void *data);
-
-    /**
-     * @param record_offset record offset in bytes
-     * @return record
-     */
-    void *selectRecord(unsigned record_offset);
 };
 
 

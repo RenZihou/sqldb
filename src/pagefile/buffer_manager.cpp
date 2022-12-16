@@ -5,7 +5,7 @@
 #include "buffer_manager.h"
 
 BufType BufferManager::_allocMem() {
-    return new unsigned int[(PAGE_SIZE >> 2)];
+    return new char[PAGE_SIZE];
 }
 
 int BufferManager::_fetchPage(const std::string &filename, unsigned pageID) {
@@ -15,6 +15,7 @@ int BufferManager::_fetchPage(const std::string &filename, unsigned pageID) {
     if (buf == nullptr) {
         buf = BufferManager::_allocMem();
         this->addr[index] = buf;
+        this->hash->push(Page{.filename=filename, .pageID=pageID}, index);
     } else {
         if (this->dirty[index >> 5] & (1 << (index & 31))) {
             Page oldPage;
@@ -22,9 +23,9 @@ int BufferManager::_fetchPage(const std::string &filename, unsigned pageID) {
             FileManager::fm().writePage(oldPage.filename, oldPage.pageID, buf);
             this->dirty[index >> 5] &= (~(1 << (index & 31)));
         }
+        this->hash->replace(index, Page{.filename=filename, .pageID=pageID});
     }
     FileManager::fm().readPage(filename, pageID, buf);
-    this->hash->replace(index, Page{.filename=filename, .pageID=pageID});
     return index;
 }
 
@@ -41,7 +42,6 @@ int BufferManager::getPage(const std::string &filename, unsigned pageID) {
     int index = this->hash->get(Page{.filename=filename, .pageID=pageID});
     if (index == -1) {
         index = this->_fetchPage(filename, pageID);
-        this->hash->push(Page{.filename=filename, .pageID=pageID}, index);
     }
     return index;
 }
@@ -70,4 +70,10 @@ void BufferManager::writeBack(int index) {
         dirty[index >> 5] &= (~(1 << (index & 31)));
     }
     this->release(index);
+}
+
+void BufferManager::writeBackAll() {
+    for (int i = 0; i < MAX_BUF_PAGE; ++i) {
+        this->writeBack(i);
+    }
 }
