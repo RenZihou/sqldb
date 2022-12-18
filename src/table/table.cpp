@@ -5,7 +5,6 @@
 #include <cstring>
 #include <iostream>
 #include <utility>
-#include <cmath>
 
 #include "table.h"
 #include "../pagefile/buffer_manager.h"
@@ -40,7 +39,8 @@ Table::~Table() {
     }
     index = BufferManager::bm().getPage(this->name, pid);
     memcpy(BufferManager::bm().readBuffer(index), (
-            char *) this->header + PAGE_SIZE * pid, unwritten);
+                                                          char *) this->header + PAGE_SIZE * pid,
+           unwritten);
     BufferManager::bm().markDirty(index);
     delete this->header;
 }
@@ -51,28 +51,21 @@ inline unsigned Table::_getRecordSize() const {
 }
 
 inline unsigned Table::_getRecordSizeWithFlag() const {
-    return this->_getRecordSize() + sizeof(unsigned);
+    return this->_getRecordSize() + sizeof(unsigned);  // null flag
 }
 
-void Table::_serialize(const std::string &value, ColumnType type, char *buffer, unsigned length) {
-    switch (type) {
-        case ColumnType::INT:
-            *(int *) buffer = std::stoi(value);
-            break;
-        case ColumnType::FLOAT:
-            *(float *) buffer = std::stof(value);
-            break;
-        case ColumnType::VARCHAR:
-            if (value.length() > length - 1) {
-                std::cerr << "value too long (" << value.length() << ") for column" << std::endl;
-            } else {
-                length = value.length() + 1;
-            }
-            memcpy(buffer, value.c_str(), length);
-            break;
-        default:
-            break;
-    }
+inline unsigned Table::_getHeaderPageNum() {
+    return (sizeof(TableHeader) - 1) / PAGE_SIZE + 1;
+}
+
+unsigned Table::_getSlotNum() const {
+    return (PAGE_SIZE - PAGE_HEADER_SIZE) / this->_getRecordSizeWithFlag();
+}
+
+inline void Table::_offset_to_slot(unsigned int offset, unsigned int &page,
+                                   unsigned int &slot) const {
+    page = offset >> PAGE_SIZE_IDX;
+    slot = (offset & PAGE_SIZE_MASK) / this->_getRecordSizeWithFlag();
 }
 
 void Table::_insertRecord(void *data) {
@@ -81,12 +74,17 @@ void Table::_insertRecord(void *data) {
     if (this->header->next_empty == 0) {  // all pages are occupied
         index = BufferManager::bm().allocPage(this->name, this->header->pages);
         buf = BufferManager::bm().readBuffer(index);
+        for (int i = 0; i <= (PAGE_HEADER_SIZE >> 3); ++i) {  // escaping header does no harm
+            buf[i] = 0;
+        }
+        buf[0] = 1;  // set first slot to 1 (occupied)
         // write next empty on this page
-        unsigned next_empty_offset = this->_getRecordSizeWithFlag();
-        int available_in_page = PAGE_SIZE / this->_getRecordSizeWithFlag() - 1;  // # of tot slots
+        unsigned next_empty_offset = PAGE_HEADER_SIZE + this->_getRecordSizeWithFlag();
+        int available_in_page = (PAGE_SIZE - PAGE_HEADER_SIZE)
+                                / static_cast<int>(this->_getRecordSizeWithFlag()) -
+                                1;  // # of tot slots
         if (available_in_page > 0) {
-            this->header->next_empty =
-                    (this->header->pages << PAGE_SIZE_IDX) + this->_getRecordSizeWithFlag();
+            this->header->next_empty = (this->header->pages << PAGE_SIZE_IDX) + next_empty_offset;
             while (--available_in_page) {
                 *(unsigned *) (buf + next_empty_offset) =
                         (this->header->pages << PAGE_SIZE_IDX)
@@ -98,45 +96,78 @@ void Table::_insertRecord(void *data) {
             this->header->next_empty = 0;
         }
         ++this->header->pages;
+        buf += PAGE_HEADER_SIZE;
     } else {
-        index = BufferManager::bm().getPage(this->name, this->header->next_empty >> PAGE_SIZE_IDX);
-        buf = BufferManager::bm().readBuffer(index) + (this->header->next_empty & PAGE_SIZE_MASK);
+        unsigned page, slot;
+        this->_offset_to_slot(this->header->next_empty, page, slot);
+        index = BufferManager::bm().getPage(this->name, page);
+        buf = BufferManager::bm().readBuffer(index);
+        buf[slot >> 3] |= (1 << (slot & 7));  // set slot to 1 (occupied)
+        buf += (this->header->next_empty & PAGE_SIZE_MASK);
         this->header->next_empty = ((unsigned *) buf)[0];
     }
     memcpy(buf, data, this->_getRecordSizeWithFlag());
     BufferManager::bm().markDirty(index);
+    ++this->header->rows;
 }
 
 void Table::_deleteRecord(unsigned int record_offset) {
-    unsigned page_id = record_offset >> PAGE_SIZE_IDX;
-    int index = BufferManager::bm().getPage(this->name, page_id);
-    BufType buf = BufferManager::bm().readBuffer(index) + (record_offset & PAGE_SIZE_MASK);
+    unsigned page, slot;
+    this->_offset_to_slot(record_offset, page, slot);
+    int index = BufferManager::bm().getPage(this->name, page);
+    BufType buf = BufferManager::bm().readBuffer(index);
+    buf[slot >> 3] &= ~(1 << (slot & 7));  // set slot to 0 (empty)
+    buf += (record_offset & PAGE_SIZE_MASK);
     ((unsigned *) buf)[0] = this->header->next_empty;
     this->header->next_empty = record_offset;
     BufferManager::bm().markDirty(index);
+    --this->header->rows;
 }
 
 void Table::_updateRecord(unsigned int record_offset, void *data) {
-    unsigned page_id = record_offset >> PAGE_SIZE_IDX;
-    int index = BufferManager::bm().getPage(this->name, page_id);
+    unsigned page, slot;
+    this->_offset_to_slot(record_offset, page, slot);
+    int index = BufferManager::bm().getPage(this->name, page);
     BufType buf = BufferManager::bm().readBuffer(index) + (record_offset & PAGE_SIZE_MASK);
     memcpy(buf + sizeof(unsigned), data, this->_getRecordSizeWithFlag());
     BufferManager::bm().markDirty(index);
 }
 
 void *Table::_selectRecord(unsigned int record_offset) {
-    unsigned page_id = record_offset >> PAGE_SIZE_IDX;
-    int index = BufferManager::bm().getPage(this->name, page_id);
+    unsigned page, slot;
+    this->_offset_to_slot(record_offset, page, slot);
+    int index = BufferManager::bm().getPage(this->name, page);
     BufType buf = BufferManager::bm().readBuffer(index) + (record_offset & PAGE_SIZE_MASK);
-    return (char *) buf;
+    return buf;
+}
+
+unsigned Table::getRows() const {
+    return this->header->rows;
+}
+
+int Table::getColumnIndex(const std::string &column) const {
+    for (int i = 0; i < this->header->columns; ++i) {
+        if (column == this->header->column_info[i].name) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+ColumnType Table::getColumnType(int index) const {
+    return this->header->column_info[index].type;
+}
+
+unsigned Table::getColumnLength(int index) const {
+    return this->header->column_info[index].length;
 }
 
 Table *Table::createTable(const std::string &name) {
     if (BufferManager::createFile(name) != 0) return nullptr;
     auto table = new Table(name);
-    table->header->pages = static_cast<unsigned >(std::ceil(
-            static_cast<double>(sizeof(TableHeader)) / PAGE_SIZE));
+    table->header->pages = Table::_getHeaderPageNum();
     table->header->columns = 0;
+    table->header->rows = 0;
     table->header->next_empty = 0;
     return table;
 }
@@ -183,8 +214,8 @@ int Table::addColumn(const Column &column, const std::string &after) {
         // set new default
 //        int value_i;
 //        float value_f;
-        this->_serialize(column.default_value, column.type, this->header->defaults + offset_begin,
-                         column.length);
+        serialize(column.default_value, column.type, this->header->defaults + offset_begin,
+                  column.length);
 //        switch (column.type) {
 //            case ColumnType::INT:
 //                value_i = std::stoi(column.default_value);
@@ -214,9 +245,9 @@ void Table::insertRecord(const std::vector<std::string> &values) {
     }
     char *data = new char[this->_getRecordSizeWithFlag()];
     for (int i = 0; i < this->header->columns; ++i) {
-        this->_serialize(values[i], this->header->column_info[i].type,
-                         data + sizeof(unsigned) + this->header->column_info[i].offset,
-                         this->header->column_info[i].length);
+        serialize(values[i], this->header->column_info[i].type,
+                  data + sizeof(unsigned) + this->header->column_info[i].offset,
+                  this->header->column_info[i].length);
         *(unsigned *) data = 0;  // TODO null flags
     }
     this->_insertRecord(data);

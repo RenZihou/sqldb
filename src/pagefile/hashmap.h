@@ -6,9 +6,9 @@
 #define HASHMAP_H_
 
 #include <string>
+
 #include "../util/constants.h"
 
-#include <iostream>
 template<typename KT>
 class HashMap {
 private:

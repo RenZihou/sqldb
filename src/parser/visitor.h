@@ -6,7 +6,6 @@
 #define VISITOR_H_
 
 #include "SQLBaseVisitor.h"
-#include "optree.h"
 
 class Visitor : public SQLBaseVisitor {
 public:
@@ -19,6 +18,8 @@ public:
     std::any visitCreateTable(SQLParser::CreateTableContext *ctx) override;
 
     std::any visitInsertIntoTable(SQLParser::InsertIntoTableContext *ctx) override;
+
+    std::any visitSelectTable_(SQLParser::SelectTable_Context *ctx) override;
 
     std::any visitSelectTable(SQLParser::SelectTableContext *ctx) override;
 
@@ -34,11 +35,25 @@ public:
 
     std::any visitValue(SQLParser::ValueContext *ctx) override;
 
+    std::any visitWhereAndClause(SQLParser::WhereAndClauseContext *ctx) override;
+
+    std::any visitWhereOperatorExpression(SQLParser::WhereOperatorExpressionContext *ctx) override;
+
+//    std::any visitWhereInList(SQLParser::WhereInListContext *ctx) override;
+
+//    std::any visitWhereLikeString(SQLParser::WhereLikeStringContext *ctx) override;
+
+    std::any visitColumn(SQLParser::ColumnContext *ctx) override;
+
+    std::any visitExpression(SQLParser::ExpressionContext *ctx) override;
+
     std::any visitSelectors(SQLParser::SelectorsContext *ctx) override;
 
     std::any visitSelector(SQLParser::SelectorContext *ctx) override;
 
     std::any visitIdentifiers(SQLParser::IdentifiersContext *ctx) override;
+
+    std::any visitOperator_(SQLParser::Operator_Context *ctx) override;
 };
 
 #endif  // VISITOR_H_

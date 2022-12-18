@@ -2,8 +2,9 @@
 // -*- encoding: utf-8 -*-
 // @Author: RenZihou
 
-
 #include "visitor.h"
+#include "op.h"
+#include "compare.h"
 
 std::any Visitor::visitProgram(SQLParser::ProgramContext *ctx) {
     Op *root = new Op(OpType::UNKNOWN);
@@ -45,16 +46,16 @@ std::any Visitor::visitInsertIntoTable(SQLParser::InsertIntoTableContext *ctx) {
     return dynamic_cast<Op *>(op);
 }
 
+std::any Visitor::visitSelectTable_(SQLParser::SelectTable_Context *ctx) {
+    return visit(ctx->selectTable());
+}
+
 std::any Visitor::visitSelectTable(SQLParser::SelectTableContext *ctx) {
     auto selectors = std::any_cast<std::vector<std::string>>(visit(ctx->selectors()));
     auto tables = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
-//        std::vector<std::string> columns;
-//        if (ctx->columns() != nullptr) {
-//            columns = std::any_cast<std::vector<std::string>>(visit(ctx->columns()));
-//        }
-    std::cout << "SELECT <selectors: " << selectors.size() << ", tables: " << tables.size() << ">"
-              << std::endl;
-    return std::make_tuple(selectors, tables);
+    auto wheres = std::any_cast<std::vector<Condition *>>(visit(ctx->whereAndClause()));  // TODO where
+    auto *op = new OpTableSelect(selectors, tables, wheres);
+    return dynamic_cast<Op *>(op);
 }
 
 std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
@@ -120,6 +121,46 @@ std::any Visitor::visitValue(SQLParser::ValueContext *ctx) {
     return "";
 }
 
+std::any Visitor::visitWhereAndClause(SQLParser::WhereAndClauseContext *ctx) {
+    std::vector<Condition *> conditions;
+    for (auto &where : ctx->whereClause()) {
+        conditions.push_back(std::any_cast<Condition *>(visit(where)));
+    }
+    return conditions;
+}
+
+std::any Visitor::visitWhereOperatorExpression(SQLParser::WhereOperatorExpressionContext *ctx) {
+    auto lhs = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->column()));
+    auto rhs = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->expression()));
+    auto op = std::any_cast<CmpOp *>(visit(ctx->operator_()));
+    if (std::get<0>(rhs).empty()) {  // value
+        return dynamic_cast<Condition *>(
+                new ConditionCmp(new ExprColumn(std::get<0>(lhs), std::get<1>(lhs)),
+                                 new ExprValue(std::get<1>(rhs)), op));
+    } else {  // column
+        return dynamic_cast<Condition *>(
+                new ConditionCmp(new ExprColumn(std::get<0>(lhs), std::get<1>(lhs)),
+                                 new ExprColumn(std::get<0>(rhs), std::get<1>(rhs)), op));
+    }
+}
+
+std::any Visitor::visitColumn(SQLParser::ColumnContext *ctx) {
+    if (ctx->Identifier().size() == 1) {  // only column name
+        return std::make_tuple<std::string, std::string>("", ctx->Identifier(0)->getText());
+    } else {  // table name and column name
+        return std::make_tuple<std::string, std::string>(ctx->Identifier(0)->getText(),
+                                                         ctx->Identifier(1)->getText());
+    }
+}
+
+std::any Visitor::visitExpression(SQLParser::ExpressionContext *ctx) {
+    if (ctx->value()) {
+        return std::make_tuple<std::string, std::string>(std::any_cast<std::string>(visit(ctx->value())), "");
+    } else {  // column
+        return visit(ctx->column());
+    }
+}
+
 std::any Visitor::visitSelectors(SQLParser::SelectorsContext *ctx) {
     if (ctx->getStart()->getText() == "*") {
         return std::vector<std::string>{"*"};
@@ -136,13 +177,27 @@ std::any Visitor::visitSelector(SQLParser::SelectorContext *ctx) {
 }
 
 std::any Visitor::visitIdentifiers(SQLParser::IdentifiersContext *ctx) {
-//        std::string identifier = ctx->getText();
     std::vector<std::string> identifiers;
     for (auto &ident: ctx->Identifier()) {
         identifiers.push_back(ident->getSymbol()->getText());
-//            identifier += ", " + visit(ident).as<std::string>();
 
     }
     return identifiers;
-//        return visitChildren(ctx);
+}
+
+std::any Visitor::visitOperator_(SQLParser::Operator_Context *ctx) {
+    if (ctx->getStart()->getText() == "=") {
+        return dynamic_cast<CmpOp *>(new Equal());
+    } else if (ctx->getStart()->getText() == ">") {
+        return dynamic_cast<CmpOp*>(new Greater());
+    } else if (ctx->getStart()->getText() == "<") {
+        return dynamic_cast<CmpOp*>(new Less());
+    } else if (ctx->getStart()->getText() == ">=") {
+        return dynamic_cast<CmpOp*>(new GreaterEqual());
+    } else if (ctx->getStart()->getText() == "<=") {
+        return dynamic_cast<CmpOp*>(new LessEqual());
+    } else if (ctx->getStart()->getText() == "<>") {
+        return dynamic_cast<CmpOp*>(new NotEqual());
+    }
+    return nullptr;
 }

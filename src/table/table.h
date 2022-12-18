@@ -10,15 +10,9 @@
 #include <vector>
 
 #include "../util/constants.h"
+#include "type.h"
 
-
-enum class ColumnType {
-    INT,
-    FLOAT,
-    VARCHAR,
-//    DATE,
-    UNKNOWN,
-};
+class RecordCursor;
 
 struct Column {
     std::string name;
@@ -38,6 +32,7 @@ struct ColumnInfo {
 
 struct TableHeader {
     unsigned columns;  // number of columns
+    unsigned rows;  // number of rows
     unsigned pages;  // number of pages (includes header)
     unsigned next_empty;  // next empty slot offset in bytes
     ColumnInfo column_info[MAX_COLUMN];
@@ -45,8 +40,8 @@ struct TableHeader {
     // TODO constraints
 };
 
-
 class Table {
+    friend RecordCursor;
 private:
     TableHeader *header;
     const std::string name;
@@ -62,13 +57,22 @@ private:
     [[nodiscard]] unsigned _getRecordSizeWithFlag() const;
 
     /**
-     * @param value value in string format
-     * @param type value type (column type)
-     * @param buffer buffer to write serialized data
-     * @param length data length (number of bytes to be written in buffer)
-     * @description serialize value to byte-form buffer
+     * @return number of table-header pages
      */
-    static void _serialize(const std::string &value, ColumnType type, char *buffer, unsigned length);
+    [[nodiscard]] static unsigned _getHeaderPageNum();
+
+    /**
+     * @return number of slots in a page
+     */
+    [[nodiscard]] unsigned _getSlotNum() const;
+
+    /**
+     * @param offset record offset
+     * @param page page number (to be filled)
+     * @param slot slot number (to be filled)
+     * @description convert record offset to (page, slot) pair
+     */
+     void _offset_to_slot(unsigned offset, unsigned &page, unsigned &slot) const;
 
     /**
      * @param data serialized data including null flag
@@ -99,6 +103,26 @@ public:
 
     ~Table();
 
+    [[nodiscard]] unsigned getRows() const;
+
+    /**
+     * @param column column name
+     * @return column index, -1 if not found
+     */
+    [[nodiscard]] int getColumnIndex(const std::string &column) const;
+
+    /**
+     * @param index column index, caller should ensure index is valid
+     * @return column type
+     */
+    [[nodiscard]] ColumnType getColumnType(int index) const;
+
+    /**
+     * @param index column index, caller should ensure index is valid
+     * @return column length
+     */
+    [[nodiscard]] unsigned getColumnLength(int index) const;
+
     /**
      * @param table_name table name
      * @return created table pointer, nullptr if created failed
@@ -114,9 +138,12 @@ public:
      */
     int addColumn(const Column &column, const std::string &after);
 
+    /**
+     * @param values list of values in plain text sorted by column index
+     * @description insert a new record into table
+     */
     void insertRecord(const std::vector<std::string> &values);
 
 };
-
 
 #endif  // TABLE_H_

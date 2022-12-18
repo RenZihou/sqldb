@@ -5,7 +5,7 @@
 #include "buffer_manager.h"
 
 BufType BufferManager::_allocMem() {
-    return new char[PAGE_SIZE];
+    return new unsigned char[PAGE_SIZE];
 }
 
 int BufferManager::_fetchPage(const std::string &filename, unsigned pageID) {

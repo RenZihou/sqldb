@@ -10,6 +10,7 @@ find_package(Threads REQUIRED)
 include_directories(include/antlr4-runtime)
 file(GLOB_RECURSE antlr4-runtime-src "include/antlr4-runtime/*.cpp" "include/antlr4-runtime/*.h")
 add_library(antlr4-runtime ${antlr4-runtime-src})
+
 add_subdirectory(src)
 
 add_executable(sqldb src/main.cpp)

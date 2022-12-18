@@ -49,13 +49,13 @@ ioStatement
     ;
 
 tableStatement
-    : 'CREATE' 'TABLE' Identifier '(' fieldList ')'                    # createTable
+    : 'CREATE' 'TABLE' Identifier '(' fieldList ')'                     # createTable
     | 'DROP' 'TABLE' Identifier                                         # dropTable
     | 'DESC' Identifier                                                 # describeTable
-    | 'INSERT' 'INTO' Identifier 'VALUES' valueLists                   # insertIntoTable
-    | 'DELETE' 'FROM' Identifier 'WHERE' whereAndClause               # deleteFromTable
-    | 'UPDATE' Identifier 'SET' setClause 'WHERE' whereAndClause     # updateTable
-    | selectTable                                                      # selectTable_
+    | 'INSERT' 'INTO' Identifier 'VALUES' valueLists                    # insertIntoTable
+    | 'DELETE' 'FROM' Identifier 'WHERE' whereAndClause                 # deleteFromTable
+    | 'UPDATE' Identifier 'SET' setClause 'WHERE' whereAndClause        # updateTable
+    | selectTable                                                       # selectTable_
     ;
 
 selectTable
@@ -77,7 +77,7 @@ fieldList
     ;
 
 field
-    : Identifier type ('NOT' Null)? ('DEFAULT' value)?                                               # normalField
+    : Identifier type ('NOT' Null)? ('DEFAULT' value)?                                                # normalField
     | 'PRIMARY' 'KEY' (Identifier)? '(' identifiers ')'                                               # primaryKeyField
     | 'FOREIGN' 'KEY' (Identifier)? '(' identifiers ')' 'REFERENCES' Identifier '(' identifiers ')'   # foreignKeyField
     ;
@@ -109,11 +109,11 @@ whereAndClause
 
 whereClause
     : column operator_ expression            # whereOperatorExpression
-    | column operator_ '(' selectTable ')'  # whereOperatorSelect
-    | column 'IS' ('NOT')? Null             # whereNull
-    | column 'IN' valueList                # whereInList
-    | column 'IN' '(' selectTable ')'      # whereInSelect
-    | column 'LIKE' String                  # whereLikeString
+    | column operator_ '(' selectTable ')'   # whereOperatorSelect
+    | column 'IS' ('NOT')? Null              # whereNull
+    | column 'IN' valueList                  # whereInList
+    | column 'IN' '(' selectTable ')'        # whereInSelect
+    | column 'LIKE' String                   # whereLikeString
     ;
 
 column
@@ -152,7 +152,6 @@ operator_
     | GreaterEqual
     | NotEqual
     ;
-
 
 aggregator
     : Count
