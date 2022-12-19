@@ -53,7 +53,10 @@ std::any Visitor::visitSelectTable_(SQLParser::SelectTable_Context *ctx) {
 std::any Visitor::visitSelectTable(SQLParser::SelectTableContext *ctx) {
     auto selectors = std::any_cast<std::vector<std::tuple<std::string, std::string>>>(visit(ctx->selectors()));
     auto tables = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
-    auto wheres = std::any_cast<std::vector<Condition *>>(visit(ctx->whereAndClause()));  // TODO where
+    std::vector<Condition *> wheres;
+    if (ctx->whereAndClause()) {
+        wheres = std::any_cast<std::vector<Condition *>>(visit(ctx->whereAndClause()));  // TODO where
+    }
     auto *op = new OpTableSelect(selectors, tables, wheres);
     return dynamic_cast<Op *>(op);
 }
@@ -133,10 +136,10 @@ std::any Visitor::visitWhereOperatorExpression(SQLParser::WhereOperatorExpressio
     auto lhs = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->column()));
     auto rhs = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->expression()));
     auto op = std::any_cast<CmpOp *>(visit(ctx->operator_()));
-    if (std::get<0>(rhs).empty()) {  // value
+    if (std::get<1>(rhs).empty()) {  // value
         return dynamic_cast<Condition *>(
                 new ConditionCmp(new ExprColumn(std::get<0>(lhs), std::get<1>(lhs)),
-                                 new ExprValue(std::get<1>(rhs)), op));
+                                 new ExprValue(std::get<0>(rhs)), op));
     } else {  // column
         return dynamic_cast<Condition *>(
                 new ConditionCmp(new ExprColumn(std::get<0>(lhs), std::get<1>(lhs)),

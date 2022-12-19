@@ -162,6 +162,14 @@ unsigned Table::getColumnLength(int index) const {
     return this->header->column_info[index].length;
 }
 
+std::vector<std::string> Table::getColumns() const {
+    std::vector<std::string> columns;
+    for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
+        columns.emplace_back(this->header->column_info[i].name);
+    }
+    return columns;
+}
+
 Table *Table::createTable(const std::string &name) {
     if (BufferManager::createFile(name) != 0) return nullptr;
     auto table = new Table(name);
@@ -214,8 +222,9 @@ int Table::addColumn(const Column &column, const std::string &after) {
         // set new default
 //        int value_i;
 //        float value_f;
-        serialize(column.default_value, column.type, this->header->defaults + offset_begin,
-                  column.length);
+        serializeFromString(column.default_value, column.type,
+                            this->header->defaults + offset_begin,
+                            column.length);
 //        switch (column.type) {
 //            case ColumnType::INT:
 //                value_i = std::stoi(column.default_value);
@@ -243,11 +252,11 @@ void Table::insertRecord(const std::vector<std::string> &values) {
                   " got: " << values.size() << ")" << std::endl;
         return;
     }
-    char *data = new char[this->_getRecordSizeWithFlag()];
+    auto data = new unsigned char[this->_getRecordSizeWithFlag()];
     for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
-        serialize(values[i], this->header->column_info[i].type,
-                  data + sizeof(unsigned) + this->header->column_info[i].offset,
-                  this->header->column_info[i].length);
+        serializeFromString(values[i], this->header->column_info[i].type,
+                            data + sizeof(unsigned) + this->header->column_info[i].offset,
+                            this->header->column_info[i].length);
         *(unsigned *) data = 0;  // TODO null flags
     }
     this->_insertRecord(data);

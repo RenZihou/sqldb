@@ -7,7 +7,7 @@
 
 #include "type.h"
 
-void serialize(const std::string &value, ColumnType type, char *buffer, unsigned length) {
+void serializeFromString(const std::string &value, ColumnType type, BufType buffer, unsigned length) {
     switch (type) {
         case ColumnType::INT:
             *(int *) buffer = std::stoi(value);

@@ -165,15 +165,22 @@ public:
     }
 };
 
-Type *deserialize(BufType buf, ColumnType type, unsigned length);
+/**
+ * @param buffer buffer stores the serialized data
+ * @param type value type (column type)
+ * @param length data length (number of bytes to read from buffer)
+ * @return typed data
+ */
+Type *deserialize(BufType buffer, ColumnType type, unsigned length);
 
 /**
  * @param value value in string format
  * @param type value type (column type)
  * @param buffer buffer to write serialized data
  * @param length data length (number of bytes to be written in buffer)
- * @description serialize value to byte-form buffer
+ * @description serializeFromString value to byte-form buffer
  */
-void serialize(const std::string &value, ColumnType type, char *buffer, unsigned length);
+void serializeFromString(const std::string &value, ColumnType type,
+                         BufType buffer, unsigned length);
 
 #endif  // TYPE_H_

@@ -36,7 +36,7 @@ struct TableHeader {
     unsigned pages;  // number of pages (includes header)
     unsigned next_empty;  // next empty slot offset in bytes
     ColumnInfo column_info[MAX_COLUMN];
-    char defaults[MAX_RECORD_SIZE];
+    unsigned char defaults[MAX_RECORD_SIZE];
     // TODO constraints
 };
 
@@ -72,7 +72,7 @@ private:
      * @param slot slot number (to be filled)
      * @description convert record offset to (page, slot) pair
      */
-     void _offset_to_slot(unsigned offset, unsigned &page, unsigned &slot) const;
+    void _offset_to_slot(unsigned offset, unsigned &page, unsigned &slot) const;
 
     /**
      * @param data serialized data including null flag
@@ -122,6 +122,11 @@ public:
      * @return column length
      */
     [[nodiscard]] unsigned getColumnLength(int index) const;
+
+    /**
+     * @return column names
+     */
+    [[nodiscard]] std::vector<std::string> getColumns() const;
 
     /**
      * @param table_name table name
