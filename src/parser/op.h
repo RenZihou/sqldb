@@ -100,12 +100,13 @@ public:
 
 class OpTableSelect : public Op {
 private:
-    std::vector<std::string> selectors;
+    std::vector<std::tuple<std::string, std::string>> selectors;
     std::vector<std::string> tables;
     std::vector<Condition *> conditions;
 
 public:
-    OpTableSelect(std::vector<std::string> selectors, std::vector<std::string> tables,
+    OpTableSelect(std::vector<std::tuple<std::string, std::string>> selectors,
+                  std::vector<std::string> tables,
                   std::vector<Condition *> conditions)
             : Op(OpType::TABLE_SELECT), selectors(std::move(selectors)),
               tables(std::move(tables)), conditions(std::move(conditions)) {}
@@ -116,7 +117,7 @@ public:
         }
     }
 
-    std::vector<std::string> getSelectors() { return this->selectors; }
+    std::vector<std::tuple<std::string, std::string>> getSelectors() { return this->selectors; }
 
     std::vector<std::string> getTableNames() { return this->tables; }
 

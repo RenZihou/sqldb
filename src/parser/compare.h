@@ -64,6 +64,8 @@ struct ExprValue : public Expression {
 
     explicit ExprValue(std::string value_s) : value(nullptr), value_s(std::move(value_s)) {}
 
+    ~ExprValue() override { delete value; }
+
     [[nodiscard]] ExpressionType getType() const override { return ExpressionType::VALUE; }
 
     Type *pick(const std::vector<Type *> &values) override { return value; }

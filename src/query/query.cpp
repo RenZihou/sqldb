@@ -5,8 +5,9 @@
 #include <iostream>
 #include <string>
 
-#include "query.h"
 #include "execute.h"
+#include "printer.h"
+#include "query.h"
 #include "../parser/parser.h"
 
 
@@ -18,6 +19,7 @@ void print_prompt() {
 int start_loop() {
     std::string command;
     Op *op;
+    Printer printer;
     while (true) {
         // read
         print_prompt();
@@ -31,7 +33,7 @@ int start_loop() {
         }
         // TODO logical optimization here
         // execute
-        execute(op);
+        execute(op, printer);
         // print
     }
     return 0;

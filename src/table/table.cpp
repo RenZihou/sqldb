@@ -65,7 +65,7 @@ unsigned Table::_getSlotNum() const {
 inline void Table::_offset_to_slot(unsigned int offset, unsigned int &page,
                                    unsigned int &slot) const {
     page = offset >> PAGE_SIZE_IDX;
-    slot = (offset & PAGE_SIZE_MASK) / this->_getRecordSizeWithFlag();
+    slot = ((offset & PAGE_SIZE_MASK) - PAGE_HEADER_SIZE) / this->_getRecordSizeWithFlag();
 }
 
 void Table::_insertRecord(void *data) {
@@ -146,7 +146,7 @@ unsigned Table::getRows() const {
 }
 
 int Table::getColumnIndex(const std::string &column) const {
-    for (int i = 0; i < this->header->columns; ++i) {
+    for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
         if (column == this->header->column_info[i].name) {
             return i;
         }
@@ -180,7 +180,7 @@ int Table::addColumn(const Column &column, const std::string &after) {
     int index = -1;
     if (after.empty()) index = 0;
     else {
-        for (int i = 0; i < this->header->columns; ++i) {
+        for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
             if (this->header->column_info[i].name == after) {
                 index = i + 1;
                 break;
@@ -244,7 +244,7 @@ void Table::insertRecord(const std::vector<std::string> &values) {
         return;
     }
     char *data = new char[this->_getRecordSizeWithFlag()];
-    for (int i = 0; i < this->header->columns; ++i) {
+    for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
         serialize(values[i], this->header->column_info[i].type,
                   data + sizeof(unsigned) + this->header->column_info[i].offset,
                   this->header->column_info[i].length);

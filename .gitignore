@@ -1,9 +1,10 @@
 # Project exclude paths
 /cmake-build-debug/
 /build/
-
 /.idea/
 
 /include/
 
 .gitignore
+valgrind.out
+t*

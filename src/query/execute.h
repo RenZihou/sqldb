@@ -5,12 +5,13 @@
 #ifndef EXECUTE_H_
 #define EXECUTE_H_
 
+#include "printer.h"
 #include "../parser/op.h"
 
 /**
  * @param op operator tree
  * @description execute the given operator tree
  */
-void execute(Op *op);
+void execute(Op *op, Printer &printer);
 
 #endif  // EXECUTE_H_

@@ -27,6 +27,8 @@ public:
 
     [[nodiscard]] virtual ColumnType getType() const = 0;
 
+    virtual void print() const = 0;
+
     virtual bool operator==(const Type &rhs) const = 0;
 
     virtual bool operator>(const Type &rhs) const = 0;
@@ -47,6 +49,8 @@ public:
     explicit Int(BufType buf) : Type(), value(*(int *) buf) {}
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::INT; }
+
+    void print() const override { printf("%d", this->value); }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::INT
@@ -87,6 +91,8 @@ public:
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::FLOAT; }
 
+    void print() const override { printf("%f", this->value); }
+
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::FLOAT
                && this->value == dynamic_cast<const Float *>(&rhs)->value;
@@ -125,6 +131,8 @@ public:
     VarChar(BufType buf, unsigned length) : Type(), value((char *) buf, length) {}
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::VARCHAR; }
+
+    void print() const override { printf("%s", this->value.c_str()); }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::VARCHAR

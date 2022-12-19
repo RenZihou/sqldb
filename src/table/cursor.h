@@ -34,11 +34,12 @@ private:
 public:
     explicit RecordCursor(Table *table) : table(table), page(Table::_getHeaderPageNum() - 1),
                                           slot(table->_getSlotNum() - 1),
-                                          valid(new unsigned char[(PAGE_HEADER_SIZE >> 3) + 1]),
+                                          valid(new unsigned char[PAGE_HEADER_SIZE]),
                                           cached_record(new unsigned char[table->_getRecordSizeWithFlag()]) {}
 
     ~RecordCursor() {
         delete[] valid;
+        delete[] cached_record;
     }
 
     bool next() {

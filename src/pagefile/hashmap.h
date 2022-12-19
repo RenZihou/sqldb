@@ -79,7 +79,7 @@ public:
         }
     }
 
-    ~HashMap() {
+    virtual ~HashMap() {
         delete[] keys;
         delete[] hkeys;
         delete[] values;
@@ -128,7 +128,7 @@ private:
 public:
     explicit PageHashMap(int c) : HashMap(c), reverse(new int[c]) {}
 
-    ~PageHashMap() {  // this will call HashMap::~HashMap() automatically
+    ~PageHashMap() override {  // this will call HashMap::~HashMap() automatically
         delete[] reverse;
     }
 

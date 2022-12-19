@@ -51,7 +51,7 @@ std::any Visitor::visitSelectTable_(SQLParser::SelectTable_Context *ctx) {
 }
 
 std::any Visitor::visitSelectTable(SQLParser::SelectTableContext *ctx) {
-    auto selectors = std::any_cast<std::vector<std::string>>(visit(ctx->selectors()));
+    auto selectors = std::any_cast<std::vector<std::tuple<std::string, std::string>>>(visit(ctx->selectors()));
     auto tables = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
     auto wheres = std::any_cast<std::vector<Condition *>>(visit(ctx->whereAndClause()));  // TODO where
     auto *op = new OpTableSelect(selectors, tables, wheres);
@@ -162,18 +162,19 @@ std::any Visitor::visitExpression(SQLParser::ExpressionContext *ctx) {
 }
 
 std::any Visitor::visitSelectors(SQLParser::SelectorsContext *ctx) {
+    std::vector<std::tuple<std::string, std::string>> selectors;
     if (ctx->getStart()->getText() == "*") {
-        return std::vector<std::string>{"*"};
+        selectors.push_back(std::make_tuple<std::string, std::string>("", "*"));
+        return selectors;
     }
-    std::vector<std::string> selectors;
     for (auto &selector: ctx->selector()) {
-        selectors.push_back(std::any_cast<std::string>(visit(selector)));
+        selectors.push_back(std::any_cast<std::tuple<std::string, std::string>>(visit(selector)));
     }
     return selectors;
 }
 
 std::any Visitor::visitSelector(SQLParser::SelectorContext *ctx) {
-    return ctx->getText();
+    return visit(ctx->column());
 }
 
 std::any Visitor::visitIdentifiers(SQLParser::IdentifiersContext *ctx) {
