@@ -74,6 +74,8 @@ private:
      */
     void _offset_to_slot(unsigned offset, unsigned &page, unsigned &slot) const;
 
+    void _slot_to_offset(unsigned &offset, unsigned page, unsigned slot) const;
+
     /**
      * @param data serialized data including null flag
      * @description insert a record into table
@@ -81,16 +83,18 @@ private:
     void _insertRecord(void *data);
 
     /**
-     * @param record_offset record offset in bytes
+     * @param page record page
+     * @param slot record slot in page
      * @description delete a record from table
      */
-    void _deleteRecord(unsigned record_offset);
+    void _deleteRecord(unsigned page, unsigned slot);
 
     /**
-     * @param record_offset record offset in bytes
+     * @param page record page
+     * @param slot record slot in page
      * @param data new serialized data including null flag
      */
-    void _updateRecord(unsigned record_offset, void *data);
+    void _updateRecord(unsigned page, unsigned slot, void *data);
 
     /**
      * @param record_offset record offset in bytes

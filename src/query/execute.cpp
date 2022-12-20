@@ -2,6 +2,8 @@
 // -*- encoding: utf-8 -*-
 // @Author: RenZihou
 
+#include <functional>
+
 #include "execute.h"
 
 inline void setupCondition(Table *table, ExprColumn *expr,
@@ -57,38 +59,12 @@ void searchTableColumn(Table *primary, Table *secondary, const std::string &colu
     }
 }
 
-void conditionalSelect(const std::string &table_name,
-                       const std::vector<std::tuple<std::string, std::string>> &columns,
-                       const std::vector<Condition *> &conditions,
-                       Printer &printer) {
-    auto table = new Table(table_name);
+void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditions,
+                           const std::function<void(RecordCursor &, bool satisfied)> &callback) {
     RecordCursor cursor(table);
     std::vector<Type *> condition_values;
     int used_columns[MAX_COLUMN];
     int used_columns_count = 0;
-    std::vector<std::string> printer_headers;
-    std::vector<Type *> printer_line;
-    int selected_columns[MAX_COLUMN];
-    int selected_columns_count = 0;
-    // setup printer
-    if (std::get<1>(columns[0]) == "*") {
-        printer_headers = table->getColumns();
-        selected_columns_count = static_cast<int>(printer_headers.size());
-        for (int i = 0; i < selected_columns_count; ++i) {
-            selected_columns[i] = i;
-        }
-    } else {
-        for (auto &column: columns) {
-            int column_index = table->getColumnIndex(std::get<1>(column));
-            if (column_index == -1) {
-                throw std::runtime_error("column `" + std::get<1>(column) + "` not found");
-            }
-            printer_headers.push_back(std::get<1>(column));
-            selected_columns[selected_columns_count++] = column_index;
-        }
-    }
-    printer.printHeader(printer_headers);
-    printer_line.reserve(selected_columns_count);
     // bind condition values to condition columns
     for (auto condition: conditions) {
         if (condition->getType() == ConditionType::Cmp) {
@@ -128,20 +104,93 @@ void conditionalSelect(const std::string &table_name,
                 break;
             }
         }
+        callback(cursor, satisfied);
+//        if (satisfied) {
+//            callback(cursor);
+//        }
+        for (auto &condition: condition_values) {
+            delete condition;
+        }
+    }
+}
+
+void conditionalSelect(const std::string &table_name,
+                       const std::vector<std::tuple<std::string, std::string>> &columns,
+                       const std::vector<Condition *> &conditions,
+                       Printer &printer) {
+    auto table = new Table(table_name);
+    std::vector<std::string> printer_headers;
+    std::vector<Type *> printer_line;
+    int selected_columns[MAX_COLUMN];
+    int selected_columns_count = 0;
+    // setup printer
+    if (std::get<1>(columns[0]) == "*") {
+        printer_headers = table->getColumns();
+        selected_columns_count = static_cast<int>(printer_headers.size());
+        for (int i = 0; i < selected_columns_count; ++i) {
+            selected_columns[i] = i;
+        }
+    } else {
+        for (auto &column: columns) {
+            int column_index = table->getColumnIndex(std::get<1>(column));
+            if (column_index == -1) {
+                throw std::runtime_error("column `" + std::get<1>(column) + "` not found");
+            }
+            printer_headers.push_back(std::get<1>(column));
+            selected_columns[selected_columns_count++] = column_index;
+        }
+    }
+    printer.printHeader(printer_headers);
+    printer_line.reserve(selected_columns_count);
+    conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
         if (satisfied) {
             for (int i = 0; i < selected_columns_count; ++i) {
                 printer_line[i] = cursor.get(selected_columns[i]);
             }
             printer.printLine(printer_line);
         }
-        for (auto &condition: condition_values) {
-            delete condition;
-        }
         for (auto &line: printer_line) {
             delete line;
         }
-    }
+    });
     printer.printEnd();
+    delete table;
+}
+
+void conditionalDelete(const std::string &table_name, const std::vector<Condition *> &conditions,
+                       Printer &printer) {
+    auto table = new Table(table_name);
+    int deleted_count = 0;
+    conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
+        if (satisfied) {
+            cursor.del();
+            ++deleted_count;
+        }
+    });
+    printer.printMessage("deleted " + std::to_string(deleted_count) + " records");
+    delete table;
+}
+
+void conditionalUpdate(const std::string &table_name, const std::vector<std::tuple<std::string, std::string>> &updates, const std::vector<Condition *> &conditions,
+                       Printer &printer) {
+
+    auto table = new Table(table_name);
+    std::vector<std::tuple<int, std::string>> update_columns;
+    for (const auto &update: updates) {
+        int column_index = table->getColumnIndex(std::get<0>(update));
+        if (column_index == -1) {
+            throw std::runtime_error("column `" + std::get<0>(update) + "` not found");
+        }
+        update_columns.emplace_back(column_index, std::get<1>(update));
+    }
+    int updated_count = 0;
+    conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
+        if (satisfied) {
+            cursor.set(update_columns);
+            ++updated_count;
+        }
+    });
+    printer.printMessage("updated " + std::to_string(updated_count) + " records");
     delete table;
 }
 
@@ -367,5 +416,11 @@ void execute(Op *op, Printer &printer) {
             default:
                 throw std::runtime_error("invalid table count");  // TODO multi-table select
         }
+    } else if (op->getType() == OpType::TABLE_DELETE) {
+        auto *op_ = dynamic_cast<OpTableDelete *>(op);
+        conditionalDelete(op_->getTableName(), op_->getConditions(), printer);
+    } else if (op->getType() == OpType::TABLE_UPDATE) {
+        auto *op_ = dynamic_cast<OpTableUpdate *>(op);
+        conditionalUpdate(op_->getTableName(), op_->getUpdates(), op_->getConditions(), printer);
     }
 }

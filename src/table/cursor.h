@@ -35,7 +35,8 @@ public:
     explicit RecordCursor(Table *table) : table(table), page(Table::_getHeaderPageNum() - 1),
                                           slot(table->_getSlotNum() - 1),
                                           valid(new unsigned char[PAGE_HEADER_SIZE]),
-                                          cached_record(new unsigned char[table->_getRecordSizeWithFlag()]) {}
+                                          cached_record(
+                                                  new unsigned char[table->_getRecordSizeWithFlag()]) {}
 
     ~RecordCursor() {
         delete[] valid;
@@ -57,9 +58,25 @@ public:
     }
 
     [[nodiscard]] Type *get(int column) const {
-        return deserialize(this->cached_record + sizeof(unsigned) + this->table->header->column_info[column].offset,
+        return deserialize(this->cached_record + sizeof(unsigned) +
+                           this->table->header->column_info[column].offset,
                            this->table->header->column_info[column].type,
                            this->table->header->column_info[column].length);
+    }
+
+    void del() {
+        this->table->_deleteRecord(this->page, this->slot);
+    }
+
+    void set(const std::vector<std::tuple<int, std::string>> &updates) {
+        for (auto &update: updates) {
+            serializeFromString(std::get<1>(update),
+                                this->table->header->column_info[std::get<0>(update)].type,
+                                this->cached_record + sizeof(unsigned) +
+                                this->table->header->column_info[std::get<0>(update)].offset,
+                                this->table->header->column_info[std::get<0>(update)].length);
+        }
+        this->table->_updateRecord(this->page, this->slot, this->cached_record);
     }
 
     void reset() {

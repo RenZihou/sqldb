@@ -28,6 +28,8 @@ public:
     virtual void printLine(const std::vector<Type *> &line);
 
     virtual void printEnd();
+
+    virtual void printMessage(const std::string &message);
 };
 
 #endif  // PRINTER_H_

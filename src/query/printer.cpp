@@ -36,3 +36,7 @@ void Printer::printLine(const std::vector<Type *> &line) {
 void Printer::printEnd() {
     printf("%d row in set\n", this->printed_lines);
 }
+
+void Printer::printMessage(const std::string &message) {
+    printf("%s\n", message.c_str());
+}

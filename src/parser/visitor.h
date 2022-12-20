@@ -19,6 +19,10 @@ public:
 
     std::any visitInsertIntoTable(SQLParser::InsertIntoTableContext *ctx) override;
 
+    std::any visitDeleteFromTable(SQLParser::DeleteFromTableContext *ctx) override;
+
+    std::any visitUpdateTable(SQLParser::UpdateTableContext *ctx) override;
+
     std::any visitSelectTable_(SQLParser::SelectTable_Context *ctx) override;
 
     std::any visitSelectTable(SQLParser::SelectTableContext *ctx) override;
@@ -46,6 +50,8 @@ public:
     std::any visitColumn(SQLParser::ColumnContext *ctx) override;
 
     std::any visitExpression(SQLParser::ExpressionContext *ctx) override;
+
+    std::any visitSetClause(SQLParser::SetClauseContext *ctx) override;
 
     std::any visitSelectors(SQLParser::SelectorsContext *ctx) override;
 

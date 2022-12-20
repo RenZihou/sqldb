@@ -68,6 +68,10 @@ inline void Table::_offset_to_slot(unsigned int offset, unsigned int &page,
     slot = ((offset & PAGE_SIZE_MASK) - PAGE_HEADER_SIZE) / this->_getRecordSizeWithFlag();
 }
 
+inline void Table::_slot_to_offset(unsigned int &offset, unsigned int page, unsigned int slot) const {
+    offset = (page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE + slot * this->_getRecordSizeWithFlag();
+}
+
 void Table::_insertRecord(void *data) {
     int index;  // index of buffer to write
     BufType buf;  // buffer to write
@@ -111,29 +115,30 @@ void Table::_insertRecord(void *data) {
     ++this->header->rows;
 }
 
-void Table::_deleteRecord(unsigned int record_offset) {
-    unsigned page, slot;
-    this->_offset_to_slot(record_offset, page, slot);
+void Table::_deleteRecord(unsigned page, unsigned slot) {
+    unsigned offset;
+    this->_slot_to_offset(offset, page, slot);
+    this->_offset_to_slot(offset, page, slot);
     int index = BufferManager::bm().getPage(this->name, page);
     BufType buf = BufferManager::bm().readBuffer(index);
     buf[slot >> 3] &= ~(1 << (slot & 7));  // set slot to 0 (empty)
-    buf += (record_offset & PAGE_SIZE_MASK);
+    buf += (offset & PAGE_SIZE_MASK);
     ((unsigned *) buf)[0] = this->header->next_empty;
-    this->header->next_empty = record_offset;
+    this->header->next_empty = offset;
     BufferManager::bm().markDirty(index);
     --this->header->rows;
 }
 
-void Table::_updateRecord(unsigned int record_offset, void *data) {
-    unsigned page, slot;
-    this->_offset_to_slot(record_offset, page, slot);
+void Table::_updateRecord(unsigned page, unsigned slot, void *data) {
+    unsigned offset;
+    this->_slot_to_offset(offset, page, slot);
     int index = BufferManager::bm().getPage(this->name, page);
-    BufType buf = BufferManager::bm().readBuffer(index) + (record_offset & PAGE_SIZE_MASK);
-    memcpy(buf + sizeof(unsigned), data, this->_getRecordSizeWithFlag());
+    BufType buf = BufferManager::bm().readBuffer(index) + (offset & PAGE_SIZE_MASK);
+    memcpy(buf, data, this->_getRecordSizeWithFlag());
     BufferManager::bm().markDirty(index);
 }
 
-void *Table::_selectRecord(unsigned int record_offset) {
+void *Table::_selectRecord(unsigned record_offset) {
     unsigned page, slot;
     this->_offset_to_slot(record_offset, page, slot);
     int index = BufferManager::bm().getPage(this->name, page);

@@ -32,15 +32,14 @@ enum class OpType {
 
 class Op {
 protected:
-    OpType _type;
     Op *_next = nullptr;
 
 public:
-    explicit Op(OpType type) : _type(type) {}
+    Op() = default;
 
     virtual ~Op() { delete _next; }
 
-    [[nodiscard]] OpType getType() const { return this->_type; }
+    [[nodiscard]] virtual OpType getType() const = 0;
 
     Op *setNext(Op *next) {
         this->_next = next;
@@ -55,7 +54,9 @@ private:
     std::string name;
 
 public:
-    explicit OpDbCreate(std::string name) : Op(OpType::DB_CREATE), name(std::move(name)) {}
+    explicit OpDbCreate(std::string name) : Op(), name(std::move(name)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::DB_CREATE; }
 
     std::string getDbName() { return this->name; }
 };
@@ -65,7 +66,9 @@ private:
     std::string name;
 
 public:
-    explicit OpDbUse(std::string name) : Op(OpType::DB_USE), name(std::move(name)) {}
+    explicit OpDbUse(std::string name) : Op(), name(std::move(name)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::DB_USE; }
 
     std::string getDbName() { return this->name; }
 };
@@ -77,7 +80,9 @@ private:
 
 public:
     OpTableCreate(std::string name, std::vector<Column> columns)
-            : Op(OpType::TABLE_CREATE), name(std::move(name)), columns(std::move(columns)) {}
+            : Op(), name(std::move(name)), columns(std::move(columns)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_CREATE; }
 
     std::string getTableName() { return this->name; }
 
@@ -91,11 +96,63 @@ private:
 
 public:
     explicit OpTableInsert(std::string name, std::vector<std::vector<std::string>> values)
-            : Op(OpType::TABLE_INSERT), name(std::move(name)), values(std::move(values)) {}
+            : Op(), name(std::move(name)), values(std::move(values)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_INSERT; }
 
     std::string getTableName() { return this->name; }
 
     std::vector<std::vector<std::string>> getValues() { return this->values; }
+};
+
+class OpTableDelete : public Op {
+private:
+    std::string name;
+    std::vector<Condition *> conditions;
+
+public:
+    explicit OpTableDelete(std::string name, std::vector<Condition *> conditions)
+            : Op(), name(std::move(name)), conditions(std::move(conditions)) {}
+
+    ~OpTableDelete() override {
+        for (auto &condition: conditions) {
+            delete condition;
+        }
+    }
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_DELETE; }
+
+    std::string getTableName() { return this->name; }
+
+    std::vector<Condition *> getConditions() { return this->conditions; }
+};
+
+class OpTableUpdate : public Op {
+private:
+    std::string name;
+    std::vector<std::tuple<std::string, std::string>> updates;
+    std::vector<Condition *> conditions;
+
+public:
+    explicit OpTableUpdate(std::string name,
+                           std::vector<std::tuple<std::string, std::string>> updates,
+                           std::vector<Condition *> conditions)
+            : Op(), name(std::move(name)), updates(std::move(updates)),
+              conditions(std::move(conditions)) {}
+
+    ~OpTableUpdate() override {
+        for (auto &condition: conditions) {
+            delete condition;
+        }
+    }
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_UPDATE; }
+
+    std::string getTableName() { return this->name; }
+
+    std::vector<std::tuple<std::string, std::string>> getUpdates() { return this->updates; }
+
+    std::vector<Condition *> getConditions() { return this->conditions; }
 };
 
 class OpTableSelect : public Op {
@@ -108,7 +165,7 @@ public:
     OpTableSelect(std::vector<std::tuple<std::string, std::string>> selectors,
                   std::vector<std::string> tables,
                   std::vector<Condition *> conditions)
-            : Op(OpType::TABLE_SELECT), selectors(std::move(selectors)),
+            : Op(), selectors(std::move(selectors)),
               tables(std::move(tables)), conditions(std::move(conditions)) {}
 
     ~OpTableSelect() override {
@@ -116,6 +173,8 @@ public:
             delete condition;
         }
     }
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_SELECT; }
 
     std::vector<std::tuple<std::string, std::string>> getSelectors() { return this->selectors; }
 
@@ -126,7 +185,9 @@ public:
 
 class OpUnknown : public Op {
 public:
-    explicit OpUnknown() : Op(OpType::UNKNOWN) {}
+    explicit OpUnknown() : Op() {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::UNKNOWN; }
 };
 
 
