@@ -5,13 +5,14 @@
 #include <iostream>
 
 #include "query/query.h"
-#include "pagefile/buffer_manager.h"
+#include "system/database.h"
 
 int main() {
     std::cout << "SqlDB boosting..." << std::endl;
+    Database::db().boost();
     start_loop();
     std::cout << "SqlDB shutting down..." << std::endl;
-    BufferManager::bm().writeBackAll();
+    Database::db().shutdown();
     std::cout << "Bye." << std::endl;
     return 0;
 }

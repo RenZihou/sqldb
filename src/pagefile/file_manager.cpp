@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
+#include <filesystem>
 
 #include "file_manager.h"
 
@@ -19,6 +20,25 @@ int FileManager::_openFile(const std::string &filename) {
 
 void FileManager::setWd(const std::string &wd_) {
     this->wd = wd_;
+    if (access(wd_.c_str(), F_OK) == -1) {
+        std::filesystem::create_directory(wd_.c_str());
+    }
+}
+
+void FileManager::rmDir(const std::string &dir) {
+    if (dir == this->wd) {
+        // TODO close files
+    }
+    std::filesystem::remove_all(dir);
+}
+
+void FileManager::rmFile(const std::string &filename) {
+    this->closeFile(filename);
+    std::filesystem::remove(this->wd + "/" + filename);
+}
+
+int FileManager::fileExists(const std::string &filename) const {
+    return access((this->wd + "/" + filename).c_str(), F_OK);
 }
 
 int FileManager::createFile(const std::string &filename) {

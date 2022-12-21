@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "compare.h"
+#include "printer.h"
 #include "../table/table.h"
 
 enum class OpType {
@@ -39,7 +40,7 @@ public:
 
     virtual ~Op() { delete _next; }
 
-    [[nodiscard]] virtual OpType getType() const = 0;
+    [[nodiscard]] virtual OpType getType() const { return OpType::UNKNOWN; }
 
     Op *setNext(Op *next) {
         this->_next = next;
@@ -47,6 +48,8 @@ public:
     }
 
     [[nodiscard]] Op *getNext() const { return this->_next; }
+
+    virtual void execute(Printer *printer);
 };
 
 class OpDbCreate : public Op {
@@ -58,7 +61,26 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::DB_CREATE; }
 
-    std::string getDbName() { return this->name; }
+    void execute(Printer *printer) override;
+};
+
+class OpDbDrop : public Op {
+private:
+    std::string name;
+
+public:
+    explicit OpDbDrop(std::string name) : Op(), name(std::move(name)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::DB_DROP; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpDbShow : public Op {
+public:
+    [[nodiscard]] OpType getType() const override { return OpType::DB_SHOW; }
+
+    void execute(Printer *printer) override;
 };
 
 class OpDbUse : public Op {
@@ -70,7 +92,14 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::DB_USE; }
 
-    std::string getDbName() { return this->name; }
+    void execute(Printer *printer) override;
+};
+
+class OpDbShowTables : public Op {
+public:
+    [[nodiscard]] OpType getType() const override { return OpType::DB_SHOW_TABLES; }
+
+    void execute(Printer *printer) override;
 };
 
 class OpTableCreate : public Op {
@@ -84,9 +113,19 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_CREATE; }
 
-    std::string getTableName() { return this->name; }
+    void execute(Printer *printer) override;
+};
 
-    std::vector<Column> getTableColumns() { return this->columns; }
+class OpTableDrop : public Op {
+private:
+    std::string name;
+
+public:
+    explicit OpTableDrop(std::string name) : Op(), name(std::move(name)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_DROP; }
+
+    void execute(Printer *printer) override;
 };
 
 class OpTableInsert : public Op {
@@ -100,9 +139,7 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_INSERT; }
 
-    std::string getTableName() { return this->name; }
-
-    std::vector<std::vector<std::string>> getValues() { return this->values; }
+    void execute(Printer *printer) override;
 };
 
 class OpTableDelete : public Op {
@@ -122,9 +159,7 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_DELETE; }
 
-    std::string getTableName() { return this->name; }
-
-    std::vector<Condition *> getConditions() { return this->conditions; }
+    void execute(Printer *printer) override;
 };
 
 class OpTableUpdate : public Op {
@@ -148,11 +183,7 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_UPDATE; }
 
-    std::string getTableName() { return this->name; }
-
-    std::vector<std::tuple<std::string, std::string>> getUpdates() { return this->updates; }
-
-    std::vector<Condition *> getConditions() { return this->conditions; }
+    void execute(Printer *printer) override;
 };
 
 class OpTableSelect : public Op {
@@ -176,19 +207,7 @@ public:
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_SELECT; }
 
-    std::vector<std::tuple<std::string, std::string>> getSelectors() { return this->selectors; }
-
-    std::vector<std::string> getTableNames() { return this->tables; }
-
-    std::vector<Condition *> getConditions() { return this->conditions; }
+    void execute(Printer *printer) override;
 };
-
-class OpUnknown : public Op {
-public:
-    explicit OpUnknown() : Op() {}
-
-    [[nodiscard]] OpType getType() const override { return OpType::UNKNOWN; }
-};
-
 
 #endif  // OP_H_

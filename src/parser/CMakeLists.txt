@@ -4,8 +4,6 @@ set(parser_source
         SQLVisitor.h SQLVisitor.cpp
         SQLBaseVisitor.h SQLBaseVisitor.cpp
         visitor.h visitor.cpp
-        parser.h parser.cpp
-        op.h op.cpp
-        compare.h compare.cpp )
+        parser.h parser.cpp)
 
 add_library(parser ${parser_source})

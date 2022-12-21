@@ -27,7 +27,7 @@ public:
 
     [[nodiscard]] virtual ColumnType getType() const = 0;
 
-    virtual void print() const = 0;
+    [[nodiscard]] virtual std::string toString() const = 0;
 
     virtual bool operator==(const Type &rhs) const = 0;
 
@@ -50,7 +50,7 @@ public:
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::INT; }
 
-    void print() const override { printf("%d", this->value); }
+    [[nodiscard]] std::string toString() const override { return std::to_string(value); }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::INT
@@ -91,7 +91,7 @@ public:
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::FLOAT; }
 
-    void print() const override { printf("%f", this->value); }
+    [[nodiscard]] std::string toString() const override { return std::to_string(value); }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::FLOAT
@@ -128,11 +128,11 @@ class VarChar : public Type {
 private:
     std::string value;
 public:
-    VarChar(BufType buf, unsigned length) : Type(), value((char *) buf, length) {}
+    explicit VarChar(BufType buf, unsigned length) : Type(), value((char *) buf) {}
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::VARCHAR; }
 
-    void print() const override { printf("%s", this->value.c_str()); }
+    [[nodiscard]] std::string toString() const override { return value; }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::VARCHAR

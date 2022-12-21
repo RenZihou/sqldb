@@ -3,11 +3,11 @@
 // @Author: RenZihou
 
 #include <cstring>
-#include <iostream>
 #include <utility>
 
 #include "table.h"
 #include "../pagefile/buffer_manager.h"
+#include "../util/exception.h"
 
 Table::Table(std::string table_name) : header(new TableHeader()), name(std::move(table_name)) {
     // read table header
@@ -45,13 +45,9 @@ Table::~Table() {
     delete this->header;
 }
 
-inline unsigned Table::_getRecordSize() const {
+inline unsigned Table::_getRecordSizeWithFlag() const {
     return this->header->column_info[this->header->columns - 1].offset +
            this->header->column_info[this->header->columns - 1].length;
-}
-
-inline unsigned Table::_getRecordSizeWithFlag() const {
-    return this->_getRecordSize() + sizeof(unsigned);  // null flag
 }
 
 inline unsigned Table::_getHeaderPageNum() {
@@ -176,7 +172,7 @@ std::vector<std::string> Table::getColumns() const {
 }
 
 Table *Table::createTable(const std::string &name) {
-    if (BufferManager::createFile(name) != 0) return nullptr;
+    if (FileManager::fm().createFile(name) != 0) return nullptr;
     auto table = new Table(name);
     table->header->pages = Table::_getHeaderPageNum();
     table->header->columns = 0;
@@ -185,10 +181,9 @@ Table *Table::createTable(const std::string &name) {
     return table;
 }
 
-int Table::addColumn(const Column &column, const std::string &after) {
+void Table::addColumn(const Column &column, const std::string &after) {
     if (this->header->columns >= MAX_COLUMN) {
-        std::cerr << "reached max column number (" << MAX_COLUMN << ")" << std::endl;
-        return -1;
+        throw SqlDBException("reached max column number");
     }
     int index = -1;
     if (after.empty()) index = 0;
@@ -201,8 +196,7 @@ int Table::addColumn(const Column &column, const std::string &after) {
         }
     }
     if (index == -1) {
-        std::cerr << "column " << after << " not found" << std::endl;
-        return -1;
+        throw SqlDBException("column not found: " + after);
     }
     // modify header
     for (int i = static_cast<int>(this->header->columns); i > index; --i) {
@@ -214,7 +208,7 @@ int Table::addColumn(const Column &column, const std::string &after) {
     this->header->column_info[index].type = column.type;
     this->header->column_info[index].length = column.length;
     this->header->column_info[index].offset =
-            index == 0 ? 0 : this->header->column_info[index - 1].offset
+            index == 0 ? sizeof(unsigned) : this->header->column_info[index - 1].offset
                              + this->header->column_info[index - 1].length;
     ++this->header->columns;
     if (column.flags & FLAG_HAS_DEFAULT) {
@@ -224,43 +218,21 @@ int Table::addColumn(const Column &column, const std::string &after) {
         memcpy(this->header->defaults + offset_end,
                this->header->defaults + offset_begin,
                sizeof(this->header->defaults) - offset_end);
-        // set new default
-//        int value_i;
-//        float value_f;
         serializeFromString(column.default_value, column.type,
                             this->header->defaults + offset_begin,
                             column.length);
-//        switch (column.type) {
-//            case ColumnType::INT:
-//                value_i = std::stoi(column.default_value);
-//                memcpy(this->header->defaults + offset_begin, &value_i, sizeof(int));
-//                break;
-//            case ColumnType::FLOAT:
-//                value_f = std::stof(column.default_value);
-//                memcpy(this->header->defaults + offset_begin, &value_f, sizeof(float));
-//                break;
-//            case ColumnType::VARCHAR:
-//                memcpy(this->header->defaults + offset_begin, column.default_value.c_str(),
-//                       column.length);
-//                break;
-//            default:
-//                break;
-//        }
     }
     // TODO modify data (this function should only be called when creating table for now)
-    return 0;
 }
 
 void Table::insertRecord(const std::vector<std::string> &values) {
     if (values.size() != this->header->columns) {
-        std::cerr << "column number mismatch (expected: " << this->header->columns <<
-                  " got: " << values.size() << ")" << std::endl;
-        return;
+        throw SqlDBException("column number mismatch");
     }
     auto data = new unsigned char[this->_getRecordSizeWithFlag()];
     for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
         serializeFromString(values[i], this->header->column_info[i].type,
-                            data + sizeof(unsigned) + this->header->column_info[i].offset,
+                            data + this->header->column_info[i].offset,
                             this->header->column_info[i].length);
         *(unsigned *) data = 0;  // TODO null flags
     }

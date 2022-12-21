@@ -1,10 +1,12 @@
-// execute.cpp
+// OpTree.cpp
 // -*- encoding: utf-8 -*-
 // @Author: RenZihou
 
 #include <functional>
 
-#include "execute.h"
+#include "op.h"
+#include "../system/database.h"
+#include "../util/exception.h"
 
 inline void setupCondition(Table *table, ExprColumn *expr,
                            int *table_used_columns, int &table_used_columns_count) {
@@ -54,7 +56,7 @@ void searchTableColumn(Table *primary, Table *secondary, const std::string &colu
     if (primary_index == -1) {
         secondary_index = secondary->getColumnIndex(column);
         if (secondary_index == -1) {
-            throw std::runtime_error("column `" + column + "` not found");
+            throw SqlDBException("column not found: " + column);
         }
     }
 }
@@ -86,13 +88,13 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
                 rhs->value = deserialize(buffer, lhs_type, lhs_length);
                 delete[] buffer;
             } else {
-                throw std::runtime_error("invalid expression type");  // TODO custom error
+                throw SqlDBException("invalid expression type");
             }
         } else {
             // TODO
         }
     }
-    condition_values.reserve(used_columns_count);
+    condition_values.resize(used_columns_count);
     while (cursor.next()) {
         for (int i = 0; i < used_columns_count; ++i) {
             condition_values[i] = cursor.get(used_columns[i]);
@@ -105,9 +107,6 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
             }
         }
         callback(cursor, satisfied);
-//        if (satisfied) {
-//            callback(cursor);
-//        }
         for (auto &condition: condition_values) {
             delete condition;
         }
@@ -117,7 +116,7 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
 void conditionalSelect(const std::string &table_name,
                        const std::vector<std::tuple<std::string, std::string>> &columns,
                        const std::vector<Condition *> &conditions,
-                       Printer &printer) {
+                       Printer *printer) {
     auto table = new Table(table_name);
     std::vector<std::string> printer_headers;
     std::vector<Type *> printer_line;
@@ -134,70 +133,33 @@ void conditionalSelect(const std::string &table_name,
         for (auto &column: columns) {
             int column_index = table->getColumnIndex(std::get<1>(column));
             if (column_index == -1) {
-                throw std::runtime_error("column `" + std::get<1>(column) + "` not found");
+                throw SqlDBException("column not found: " + std::get<1>(column));
             }
             printer_headers.push_back(std::get<1>(column));
             selected_columns[selected_columns_count++] = column_index;
         }
     }
-    printer.printHeader(printer_headers);
-    printer_line.reserve(selected_columns_count);
+    printer->printHeader(printer_headers);
+    printer_line.resize(selected_columns_count);
     conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
         if (satisfied) {
             for (int i = 0; i < selected_columns_count; ++i) {
                 printer_line[i] = cursor.get(selected_columns[i]);
             }
-            printer.printLine(printer_line);
+            printer->printLine(printer_line);
         }
         for (auto &line: printer_line) {
             delete line;
         }
     });
-    printer.printEnd();
-    delete table;
-}
-
-void conditionalDelete(const std::string &table_name, const std::vector<Condition *> &conditions,
-                       Printer &printer) {
-    auto table = new Table(table_name);
-    int deleted_count = 0;
-    conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
-        if (satisfied) {
-            cursor.del();
-            ++deleted_count;
-        }
-    });
-    printer.printMessage("deleted " + std::to_string(deleted_count) + " records");
-    delete table;
-}
-
-void conditionalUpdate(const std::string &table_name, const std::vector<std::tuple<std::string, std::string>> &updates, const std::vector<Condition *> &conditions,
-                       Printer &printer) {
-
-    auto table = new Table(table_name);
-    std::vector<std::tuple<int, std::string>> update_columns;
-    for (const auto &update: updates) {
-        int column_index = table->getColumnIndex(std::get<0>(update));
-        if (column_index == -1) {
-            throw std::runtime_error("column `" + std::get<0>(update) + "` not found");
-        }
-        update_columns.emplace_back(column_index, std::get<1>(update));
-    }
-    int updated_count = 0;
-    conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
-        if (satisfied) {
-            cursor.set(update_columns);
-            ++updated_count;
-        }
-    });
-    printer.printMessage("updated " + std::to_string(updated_count) + " records");
+    printer->printEnd();
     delete table;
 }
 
 void conditionalJoin(const std::string &primary_table, const std::string &secondary_table,
                      const std::vector<std::tuple<std::string, std::string>> &columns,
                      const std::vector<Condition *> &conditions,
-                     Printer &printer) {
+                     Printer *printer) {
     // TODO choose the table with index as secondary table
     // choose the table with the least number of rows as primary table
     auto primary = new Table(primary_table);
@@ -252,7 +214,7 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
             } else if (std::get<0>(column) == primary_table) {
                 column_index = primary->getColumnIndex(std::get<1>(column));
                 if (column_index == -1) {
-                    throw std::runtime_error("column `" + std::get<1>(column) + "` not found");
+                    throw SqlDBException("column not found: " + std::get<1>(column));
                 }
                 printer_headers.push_back(std::get<0>(column) + "." + std::get<1>(column));
                 selected_columns[selected_columns_count] = column_index;
@@ -260,19 +222,19 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
             } else if (std::get<0>(column) == secondary_table) {
                 column_index = secondary->getColumnIndex(std::get<1>(column));
                 if (column_index == -1) {
-                    throw std::runtime_error("column `" + std::get<1>(column) + "` not found");
+                    throw SqlDBException("column not found: " + std::get<1>(column));
                 }
                 printer_headers.push_back(std::get<0>(column) + "." + std::get<1>(column));
                 selected_columns[selected_columns_count] = column_index;
                 selected_columns_is_primary[selected_columns_count] = false;
             } else {
-                throw std::runtime_error("table `" + std::get<0>(column) + "` not found");
+                throw SqlDBException("table not found: " + std::get<0>(column));
             }
             ++selected_columns_count;
         }
     }
-    printer.printHeader(printer_headers);
-    printer_line.reserve(printer_headers.size());
+    printer->printHeader(printer_headers);
+    printer_line.resize(printer_headers.size());
     // bind condition values to condition expressions
     for (auto condition: conditions) {
         if (condition->getType() == ConditionType::Cmp) {
@@ -333,13 +295,13 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
                 rhs->value = deserialize(buffer, lhs_type, lhs_length);
                 delete[] buffer;
             } else {
-                throw std::runtime_error("invalid expression type");  // TODO custom error
+                throw SqlDBException("invalid expression type");
             }
         } else {
             // TODO condition in
         }
     }
-    condition_values.reserve(total_used_columns_count);
+    condition_values.resize(total_used_columns_count);
     while (primary_cursor.next()) {
         // read primary table values
         for (int i = 0; i < primary_used_columns_count; ++i) {
@@ -366,7 +328,7 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
                                       ? primary_cursor.get(selected_columns[i])
                                       : secondary_cursor.get(selected_columns[i]);
                 }
-                printer.printLine(printer_line);
+                printer->printLine(printer_line);
             }
         }
         secondary_cursor.reset();
@@ -377,50 +339,108 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
             delete line;
         }
     }
-    printer.printEnd();
+    printer->printEnd();
     delete primary;
     delete secondary;
 }
 
-void execute(Op *op, Printer &printer) {
-    if (op->getType() == OpType::DB_CREATE) {
-        // TODO
-    } else if (op->getType() == OpType::TABLE_CREATE) {
-        auto *op_ = dynamic_cast<OpTableCreate *>(op);
-        auto table = Table::createTable(op_->getTableName());
-//        auto table = new Table(op_->getTableName());
-        auto columns = op_->getTableColumns();
-        for (auto it = columns.rbegin(); it != columns.rend(); ++it) {
-            table->addColumn(*it, "");
-        }  // range based inverse loop is not supported by gcc for now
-        delete table;
-    } else if (op->getType() == OpType::TABLE_INSERT) {
-        auto *op_ = dynamic_cast<OpTableInsert *>(op);
-        auto table = new Table(op_->getTableName());
-        auto values = op_->getValues();
-        for (auto &value: values) {
-            table->insertRecord(value);
-        }
-        delete table;
-    } else if (op->getType() == OpType::TABLE_SELECT) {
-        auto *op_ = dynamic_cast<OpTableSelect *>(op);
-        switch (op_->getTableNames().size()) {
-            case 1:
-                conditionalSelect(op_->getTableNames()[0], op_->getSelectors(),
-                                  op_->getConditions(), printer);
-                break;
-            case 2:
-                conditionalJoin(op_->getTableNames()[0], op_->getTableNames()[1],
-                                op_->getSelectors(), op_->getConditions(), printer);
-                break;
-            default:
-                throw std::runtime_error("invalid table count");  // TODO multi-table select
-        }
-    } else if (op->getType() == OpType::TABLE_DELETE) {
-        auto *op_ = dynamic_cast<OpTableDelete *>(op);
-        conditionalDelete(op_->getTableName(), op_->getConditions(), printer);
-    } else if (op->getType() == OpType::TABLE_UPDATE) {
-        auto *op_ = dynamic_cast<OpTableUpdate *>(op);
-        conditionalUpdate(op_->getTableName(), op_->getUpdates(), op_->getConditions(), printer);
+void Op::execute(Printer *printer) {
+    throw SqlDBException("not supported syntax");
+}
+
+void OpDbCreate::execute(Printer *printer) {
+    Database::db().createDb(this->name);
+}
+
+void OpDbDrop::execute(Printer *printer) {
+    Database::db().dropDb(this->name);
+}
+
+void OpDbShow::execute(Printer *printer) {
+    Database::db().showDb(printer);
+}
+
+void OpDbUse::execute(Printer *printer) {
+    Database::db().useDb(this->name);
+}
+
+void OpDbShowTables::execute(Printer *printer) {
+    Database::db().showTable(printer);
+}
+
+void OpTableCreate::execute(Printer *printer) {
+    Database::db().createTable(this->name);
+    auto table = Table::createTable(this->name);
+    for (auto it = this->columns.rbegin(); it != this->columns.rend(); ++it) {
+        table->addColumn(*it, "");
+    }  // range based inverse loop is not supported by gcc for now
+    delete table;
+}
+
+void OpTableDrop::execute(Printer *printer) {
+    Database::db().dropTable(this->name);
+}
+
+void OpTableInsert::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    auto table = new Table(this->name);
+    for (auto &value: this->values) {
+        table->insertRecord(value);
     }
+    delete table;
+}
+
+void OpTableDelete::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    auto table = new Table(this->name);
+    int deleted_count = 0;
+    conditionalIterRecord(table, this->conditions, [&](RecordCursor &cursor, bool satisfied) {
+        if (satisfied) {
+            cursor.del();
+            ++deleted_count;
+        }
+    });
+    printer->printMessage("deleted " + std::to_string(deleted_count) + " records");
+    delete table;
+}
+
+void OpTableUpdate::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    auto table = new Table(this->name);
+    std::vector<std::tuple<int, std::string>> update_columns;
+    for (const auto &update: this->updates) {
+        int column_index = table->getColumnIndex(std::get<0>(update));
+        if (column_index == -1) {
+            throw SqlDBException("column not found: " + std::get<0>(update));
+        }
+        update_columns.emplace_back(column_index, std::get<1>(update));
+    }
+    int updated_count = 0;
+    conditionalIterRecord(table, this->conditions, [&](RecordCursor &cursor, bool satisfied) {
+        if (satisfied) {
+            cursor.set(update_columns);
+            ++updated_count;
+        }
+    });
+    printer->printMessage("updated " + std::to_string(updated_count) + " records");
+    delete table;
+}
+
+void OpTableSelect::execute(Printer *printer) {
+    switch (this->tables.size()) {
+        case 1:
+            Database::db().assertTableExists(this->tables[0]);
+            conditionalSelect(this->tables[0], this->selectors,
+                              this->conditions, printer);
+            break;
+        case 2:
+            Database::db().assertTableExists(this->tables[0]);
+            Database::db().assertTableExists(this->tables[1]);
+            conditionalJoin(this->tables[0], this->tables[1],
+                            this->selectors, this->conditions, printer);
+            break;
+        default:
+            throw SqlDBException("invalid table count");
+    }
+
 }

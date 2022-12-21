@@ -38,6 +38,24 @@ public:
     void setWd(const std::string &wd_);
 
     /**
+     * @param dir directory to be removed
+     * @description remove directory
+     */
+    void rmDir(const std::string &dir);
+
+    /**
+     * @param filename filename relative to working directory
+     * @description remove file
+     */
+    void rmFile(const std::string &filename);
+
+    /**
+     * @param filename filename relative to working directory
+     * @return 0 for file exist, -1 for file not exist
+     */
+    [[nodiscard]] int fileExists(const std::string &filename) const;
+
+    /**
      * @param filename filename relative to working directory
      * @return 0 for success, -1 for error
      * @description create file
@@ -67,7 +85,7 @@ public:
      * @return 0 for success
      * @description close file
      */
-    int closeFile(const std::string &filename);
+    int closeFile(const std::string &filename);  // TODO close file
 };
 
 #endif  // FILE_MANAGER_H_

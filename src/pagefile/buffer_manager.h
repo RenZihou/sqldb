@@ -60,13 +60,6 @@ public:
 
     /**
      * @param filename filename relative to working directory
-     * @return 0 for success, -1 for error
-     * @description create file
-     */
-    static int createFile(const std::string &filename);
-
-    /**
-     * @param filename filename relative to working directory
      * @param pageID page id
      * @return buffer index
      * @description allocate new page, use only when you are sure that the page is not in buffer

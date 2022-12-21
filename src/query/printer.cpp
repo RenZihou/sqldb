@@ -26,9 +26,8 @@ void Printer::printLine(const std::vector<Type *> &line) {
     char sep = '\0';
 //    unsigned columns = this->types.size();
     for (unsigned i = 0; i < this->columns; ++i) {
-        printf("%c", sep);
+        printf("%c%s", sep, line[i]->toString().c_str());
         sep = '\t';
-        line[i]->print();
     }
     printf("\n");
 }
@@ -40,3 +39,19 @@ void Printer::printEnd() {
 void Printer::printMessage(const std::string &message) {
     printf("%s\n", message.c_str());
 }
+
+void MemoryStringPrinter::printHeader(const std::vector<std::string> &header) {
+    this->lines.clear();
+}
+
+void MemoryStringPrinter::printLine(const std::vector<Type *> &line) {
+    for (const auto &column: line) {
+        this->lines.push_back(column->toString());
+    }
+}
+
+void MemoryStringPrinter::printEnd() {}
+
+void MemoryStringPrinter::printMessage(const std::string &message) {}
+
+std::vector<std::string> MemoryStringPrinter::getLines() const { return this->lines; }

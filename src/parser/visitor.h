@@ -15,7 +15,17 @@ public:
 
     std::any visitCreateDb(SQLParser::CreateDbContext *ctx) override;
 
+    std::any visitDropDb(SQLParser::DropDbContext *ctx) override;
+
+    std::any visitShowDbs(SQLParser::ShowDbsContext *ctx) override;
+
+    std::any visitUseDb(SQLParser::UseDbContext *ctx) override;
+
+    std::any visitShowTables(SQLParser::ShowTablesContext *ctx) override;
+
     std::any visitCreateTable(SQLParser::CreateTableContext *ctx) override;
+
+    std::any visitDropTable(SQLParser::DropTableContext *ctx) override;
 
     std::any visitInsertIntoTable(SQLParser::InsertIntoTableContext *ctx) override;
 

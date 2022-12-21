@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "constants.h"
+#include "exception.h"
 
 void check_define() {
     assert(MAX_RECORD_SIZE <= PAGE_SIZE - sizeof(unsigned));

@@ -29,10 +29,6 @@ int BufferManager::_fetchPage(const std::string &filename, unsigned pageID) {
     return index;
 }
 
-int BufferManager::createFile(const std::string &filename) {
-    return FileManager::fm().createFile(filename);
-}
-
 int BufferManager::allocPage(const std::string &filename, unsigned pageID) {
     int index = this->_fetchPage(filename, pageID);
     return index;
@@ -53,7 +49,7 @@ BufType BufferManager::readBuffer(int index) {
 
 void BufferManager::markDirty(int index) {
     this->dirty[index >> 5] |= (1 << (index & 31));
-    readBuffer(index);
+//    readBuffer(index);
 }
 
 void BufferManager::release(int index) {

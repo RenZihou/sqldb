@@ -5,13 +5,13 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
-#include "op.h"
+#include "../query/op.h"
 
 /**
  * @param command user-input sql command
- * @return operator tree
+ * @return operation list
  * @description parse the given sql command
  */
-Op *parse(const std::string& command);
+Op *parse(const std::string &command);
 
 #endif  // PARSER_H_

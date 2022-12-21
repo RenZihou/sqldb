@@ -36,7 +36,7 @@ struct TableHeader {
     unsigned pages;  // number of pages (includes header)
     unsigned next_empty;  // next empty slot offset in bytes
     ColumnInfo column_info[MAX_COLUMN];
-    unsigned char defaults[MAX_RECORD_SIZE];
+    unsigned char defaults[MAX_RECORD_SIZE + sizeof(unsigned)];
     // TODO constraints
 };
 
@@ -46,10 +46,10 @@ private:
     TableHeader *header;
     const std::string name;
 
-    /**
-     * @return size of a record (excluding null flag) in bytes
-     */
-    [[nodiscard]] unsigned _getRecordSize() const;
+//    /**
+//     * @return size of a record (excluding null flag) in bytes
+//     */
+//    [[nodiscard]] unsigned _getRecordSize() const;
 
     /**
      * @return size of a record (including null flag) in bytes
@@ -142,10 +142,9 @@ public:
     /**
      * @param column new column info
      * @param after insert after which column, set "" to insert at the beginning
-     * @return 0 for success, -1 for error
      * @description (ONLY CALL ON CREATE TABLE FOR NOW) add a new column to the table
      */
-    int addColumn(const Column &column, const std::string &after);
+    void addColumn(const Column &column, const std::string &after);
 
     /**
      * @param values list of values in plain text sorted by column index

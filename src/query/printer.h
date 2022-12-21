@@ -32,4 +32,20 @@ public:
     virtual void printMessage(const std::string &message);
 };
 
+class MemoryStringPrinter : public Printer {
+private:
+    std::vector<std::string> lines;
+
+public:
+    void printHeader(const std::vector<std::string> &header) override;
+
+    void printLine(const std::vector<Type *> &line) override;
+
+    void printEnd() override;
+
+    void printMessage(const std::string &message) override;
+
+    [[nodiscard]] std::vector<std::string> getLines() const;
+};
+
 #endif  // PRINTER_H_

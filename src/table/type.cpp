@@ -17,7 +17,7 @@ void serializeFromString(const std::string &value, ColumnType type, BufType buff
             break;
         case ColumnType::VARCHAR:
             if (value.length() > length - 1) {
-                std::cerr << "value too long (" << value.length() << ") for column" << std::endl;
+                std::cerr << "WARNING: value too long (" << value.length() << ") for column" << std::endl;
             } else {
                 length = value.length() + 1;
             }

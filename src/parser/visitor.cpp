@@ -3,11 +3,10 @@
 // @Author: RenZihou
 
 #include "visitor.h"
-#include "op.h"
-#include "compare.h"
+#include "../query/op.h"
 
 std::any Visitor::visitProgram(SQLParser::ProgramContext *ctx) {
-    Op *root = new OpUnknown();
+    Op *root = new Op();
     Op *top = root;
     for (auto &stmt: ctx->statement()) {
         top = top->setNext(std::any_cast<Op *>(visit(stmt)));
@@ -22,8 +21,7 @@ std::any Visitor::visitStatement(SQLParser::StatementContext *ctx) {
     if (ctx->dbStatement()) return visit(ctx->dbStatement());
     else if (ctx->tableStatement()) return visit(ctx->tableStatement());
     else if (ctx->alterStatement()) return visit(ctx->alterStatement());
-    auto *op = new OpUnknown();
-    return op;
+    return new Op();
 }
 
 std::any Visitor::visitCreateDb(SQLParser::CreateDbContext *ctx) {
@@ -32,10 +30,38 @@ std::any Visitor::visitCreateDb(SQLParser::CreateDbContext *ctx) {
     return dynamic_cast<Op *>(op);
 }
 
+std::any Visitor::visitDropDb(SQLParser::DropDbContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto *op = new OpDbDrop(name);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitShowDbs(SQLParser::ShowDbsContext *ctx) {
+    auto *op = new OpDbShow();
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitUseDb(SQLParser::UseDbContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto *op = new OpDbUse(name);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitShowTables(SQLParser::ShowTablesContext *ctx) {
+    auto *op = new OpDbShowTables();
+    return dynamic_cast<Op *>(op);
+}
+
 std::any Visitor::visitCreateTable(SQLParser::CreateTableContext *ctx) {
     std::string name = ctx->Identifier()->getText();
     auto columns = std::any_cast<std::vector<Column>>(visit(ctx->fieldList()));
     auto *op = new OpTableCreate(name, columns);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitDropTable(SQLParser::DropTableContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto *op = new OpTableDrop(name);
     return dynamic_cast<Op *>(op);
 }
 
@@ -219,17 +245,17 @@ std::any Visitor::visitIdentifiers(SQLParser::IdentifiersContext *ctx) {
 }
 
 std::any Visitor::visitOperator_(SQLParser::Operator_Context *ctx) {
-    if (ctx->getStart()->getText() == "=") {
+    if (ctx->EqualOrAssign()) {
         return dynamic_cast<CmpOp *>(new Equal());
-    } else if (ctx->getStart()->getText() == ">") {
+    } else if (ctx->Greater()) {
         return dynamic_cast<CmpOp *>(new Greater());
-    } else if (ctx->getStart()->getText() == "<") {
+    } else if (ctx->Less()) {
         return dynamic_cast<CmpOp *>(new Less());
-    } else if (ctx->getStart()->getText() == ">=") {
+    } else if (ctx->GreaterEqual()) {
         return dynamic_cast<CmpOp *>(new GreaterEqual());
-    } else if (ctx->getStart()->getText() == "<=") {
+    } else if (ctx->LessEqual()) {
         return dynamic_cast<CmpOp *>(new LessEqual());
-    } else if (ctx->getStart()->getText() == "<>") {
+    } else if (ctx->NotEqual()) {
         return dynamic_cast<CmpOp *>(new NotEqual());
     }
     return nullptr;
