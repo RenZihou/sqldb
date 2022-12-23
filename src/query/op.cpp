@@ -11,6 +11,9 @@
 inline void setupCondition(Table *table, ExprColumn *expr,
                            int *table_used_columns, int &table_used_columns_count) {
     int col_index = table->getColumnIndex(expr->column);
+    if (col_index == -1) {
+        throw SqlDBException("column does not exist: " + expr->column);
+    }
     expr->value_index = table_used_columns_count;
     table_used_columns[table_used_columns_count] = col_index;
     ++table_used_columns_count;
@@ -20,6 +23,9 @@ inline void setupCondition(Table *table, ExprColumn *expr,
                            int *table_used_columns, int *table_condition_columns,
                            int &table_used_columns_count, int &total_used_columns_count) {
     int col_index = table->getColumnIndex(expr->column);
+    if (col_index == -1) {
+        throw SqlDBException("column does not exist: " + expr->column);
+    }
     expr->value_index = total_used_columns_count;
     table_used_columns[table_used_columns_count] = col_index;
     table_condition_columns[table_used_columns_count] = total_used_columns_count;
@@ -30,6 +36,9 @@ inline void setupCondition(Table *table, ExprColumn *expr,
 inline void setupCondition(Table *table, ExprColumn *expr, ColumnType &type, unsigned &length,
                            int *table_used_columns, int &table_used_columns_count) {
     int col_index = table->getColumnIndex(expr->column);
+    if (col_index == -1) {
+        throw SqlDBException("column does not exist: " + expr->column);
+    }
     type = table->getColumnType(col_index);
     length = table->getColumnLength(col_index);
     expr->value_index = table_used_columns_count;
@@ -41,6 +50,9 @@ inline void setupCondition(Table *table, ExprColumn *expr, ColumnType &type, uns
                            int *table_used_columns, int *table_condition_columns,
                            int &table_used_columns_count, int &total_used_columns_count) {
     int col_index = table->getColumnIndex(expr->column);
+    if (col_index == -1) {
+        throw SqlDBException("column does not exist: " + expr->column);
+    }
     type = table->getColumnType(col_index);
     length = table->getColumnLength(col_index);
     expr->value_index = total_used_columns_count;
@@ -329,15 +341,24 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
                                       : secondary_cursor.get(selected_columns[i]);
                 }
                 printer->printLine(printer_line);
+                for (auto &line: printer_line) {
+                    delete line;
+                }
+            }
+            for (int i = 0; i < secondary_used_columns_count; ++i) {
+                delete condition_values[secondary_condition_columns[i]];
             }
         }
         secondary_cursor.reset();
-        for (auto &condition: condition_values) {
-            delete condition;
+        for (int i = 0; i < primary_used_columns_count; ++i) {
+            delete condition_values[primary_condition_columns[i]];
         }
-        for (auto &line: printer_line) {
-            delete line;
-        }
+//        for (auto &condition: condition_values) {
+//            delete condition;
+//        }
+//        for (auto &line: printer_line) {
+//            delete line;
+//        }
     }
     printer->printEnd();
     delete primary;

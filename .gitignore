@@ -7,4 +7,6 @@
 
 .gitignore
 valgrind.out
-t*
+
+d/
+.dbs

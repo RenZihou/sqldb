@@ -55,3 +55,11 @@ void MemoryStringPrinter::printEnd() {}
 void MemoryStringPrinter::printMessage(const std::string &message) {}
 
 std::vector<std::string> MemoryStringPrinter::getLines() const { return this->lines; }
+
+void DummyPrinter::printHeader(const std::vector<std::string> &header) {}
+
+void DummyPrinter::printLine(const std::vector<Type *> &line) {}
+
+void DummyPrinter::printEnd() {}
+
+void DummyPrinter::printMessage(const std::string &message) {}

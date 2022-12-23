@@ -28,6 +28,9 @@ const std::string &Database::getCurrentDb() const { return this->current_db; }
 
 void Database::assertTableExists(const std::string &name) const {
     if (name[0] == '.') return;  // do not check meta-tables as we always trust them
+    if (this->current_db.empty()) {
+        throw SqlDBException("no database selected");
+    }
     if (std::find(this->tables.begin(), this->tables.end(), name) == this->tables.end()) {
         throw SqlDBException("table does not exist: " + name);
     }
@@ -46,7 +49,7 @@ void Database::dropDb(const std::string &name) {
     }
     this->databases.erase(std::remove(this->databases.begin(), this->databases.end(), name),
                           this->databases.end());
-    FileManager::fm().rmFile(name);
+    FileManager::fm().rmDir(name);
 }
 
 void Database::useDb(const std::string &name) {
@@ -62,12 +65,13 @@ void Database::useDb(const std::string &name) {
     current_db = name;
     if (FileManager::fm().fileExists(".tables") == -1) {
         FileManager::fm().createFile(".tables");
+        DummyPrinter printer;
         OpTableCreate(".tables", {Column{
                 .name="table_name",
                 .type=ColumnType::VARCHAR,
                 .length=MAX_TABLE_NAME_LEN,
                 .flags=0,
-                .default_value=""}}).execute(nullptr);
+                .default_value=""}}).execute(&printer);
         this->tables.clear();
     } else {
         MemoryStringPrinter printer;
@@ -96,21 +100,29 @@ void Database::createTable(const std::string &name) {
         throw SqlDBException("table already exists: " + name);
     }
     this->tables.emplace_back(name);
-    OpTableInsert(".tables", {{name}}).execute(nullptr);
+    DummyPrinter printer;
+    OpTableInsert(".tables", {{name}}).execute(&printer);
 }
 
 void Database::dropTable(const std::string &name) {
+    if (this->current_db.empty()) {
+        throw SqlDBException("no database selected");
+    }
     if (std::find(this->tables.begin(), this->tables.end(), name) == this->tables.end()) {
         throw SqlDBException("table does not exist: " + name);
     }
     this->tables.erase(std::remove(this->tables.begin(), this->tables.end(), name),
                        this->tables.end());
-    ConditionCmp condition(new ExprColumn("", name), new ExprColumn("", name), new Equal);
-    OpTableDelete(".tables", {&condition}).execute(nullptr);
+    auto condition = new ConditionCmp(new ExprColumn("", "table_name"), new ExprValue(name), new Equal);
+    DummyPrinter printer;
+    OpTableDelete(".tables", {condition}).execute(&printer);
     FileManager::fm().rmFile(name);
 }
 
 void Database::showTable(Printer *printer) {
+    if (this->current_db.empty()) {
+        throw SqlDBException("no database selected");
+    }
     printer->printHeader({"table_name"});
     for (const auto &table: this->tables) {
         VarChar value((BufType) table.c_str(), table.length());
@@ -126,7 +138,7 @@ void Database::shutdown() {
     }
     FileManager::fm().closeFile(".table");
     FileManager::fm().setWd(".");
-    MemoryStringPrinter printer;
+    DummyPrinter printer;
     OpTableDelete(".dbs", {}).execute(&printer);
     std::vector<std::vector<std::string>> values;
     for (const auto &db: this->databases) {

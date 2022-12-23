@@ -74,7 +74,7 @@ void Table::_insertRecord(void *data) {
     if (this->header->next_empty == 0) {  // all pages are occupied
         index = BufferManager::bm().allocPage(this->name, this->header->pages);
         buf = BufferManager::bm().readBuffer(index);
-        for (int i = 0; i <= (PAGE_HEADER_SIZE >> 3); ++i) {  // escaping header does no harm
+        for (int i = 0; i < PAGE_HEADER_SIZE; ++i) {
             buf[i] = 0;
         }
         buf[0] = 1;  // set first slot to 1 (occupied)
@@ -185,6 +185,12 @@ void Table::addColumn(const Column &column, const std::string &after) {
     if (this->header->columns >= MAX_COLUMN) {
         throw SqlDBException("reached max column number");
     }
+    if (this->getColumnIndex(column.name) != -1) {
+        throw SqlDBException("column already exists");
+    }
+    if (column.name.length() >= MAX_COLUMN_NAME_LEN) {
+        throw SqlDBException("column name too long");
+    }
     int index = -1;
     if (after.empty()) index = 0;
     else {
@@ -203,7 +209,7 @@ void Table::addColumn(const Column &column, const std::string &after) {
         this->header->column_info[i] = this->header->column_info[i - 1];
         this->header->column_info[i].offset += column.length;
     }
-    memcpy(this->header->column_info[index].name, column.name.c_str(), column.name.length());
+    memcpy(this->header->column_info[index].name, column.name.c_str(), column.name.length() + 1);
     this->header->column_info[index].flags = column.flags;
     this->header->column_info[index].type = column.type;
     this->header->column_info[index].length = column.length;
