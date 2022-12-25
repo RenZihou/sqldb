@@ -30,6 +30,11 @@ typedef unsigned char *BufType;
 
 #define FLAG_NOT_NULL 1  // bit mask of not null flag
 #define FLAG_HAS_DEFAULT 2  // bit mask of has default flag
+#define FLAG_HAS_INDEX 4  // bit mask of has index flag
+
+/* ==== index ==== */
+
+#define BTREE_ORDER 255  // order of B+ tree, now there will be exactly 2 index node on each page
 
 /* === DATABASE ==== */
 

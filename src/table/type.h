@@ -45,10 +45,13 @@ public:
 class Int : public Type {
 private:
     int value;
+
 public:
     explicit Int(BufType buf) : Type(), value(*(int *) buf) {}
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::INT; }
+
+    [[nodiscard]] int getValue() const { return value; }
 
     [[nodiscard]] std::string toString() const override { return std::to_string(value); }
 
@@ -86,6 +89,7 @@ public:
 class Float : public Type {
 private:
     float value;
+
 public:
     explicit Float(BufType buf) : Type(), value(*(float *) buf) {}
 
@@ -174,11 +178,11 @@ public:
 Type *deserialize(BufType buffer, ColumnType type, unsigned length);
 
 /**
+ * @brief serializeFromString value to byte-form buffer
  * @param value value in string format
  * @param type value type (column type)
  * @param buffer buffer to write serialized data
  * @param length data length (number of bytes to be written in buffer)
- * @description serializeFromString value to byte-form buffer
  */
 void serializeFromString(const std::string &value, ColumnType type,
                          BufType buffer, unsigned length);

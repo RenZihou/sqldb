@@ -28,6 +28,7 @@ enum class OpType {
     TABLE_DELETE,
     TABLE_UPDATE,
     TABLE_SELECT,
+    TABLE_ALTER_ADD_INDEX,
     UNKNOWN
 };
 
@@ -206,6 +207,20 @@ public:
     }
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_SELECT; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableAlterAddIndex : public Op {
+private:
+    std::string name;
+    std::vector<std::string> columns;
+
+public:
+    OpTableAlterAddIndex(std::string name, std::vector<std::string> columns)
+            : Op(), name(std::move(name)), columns(std::move(columns)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_ADD_INDEX; }
 
     void execute(Printer *printer) override;
 };

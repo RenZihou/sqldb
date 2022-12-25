@@ -6,124 +6,28 @@
 
 #include "op.h"
 #include "../system/database.h"
+#include "../index/int_index.h"
 #include "../util/exception.h"
 
-inline void setupCondition(Table *table, ExprColumn *expr,
-                           int *table_used_columns, int &table_used_columns_count) {
-    int col_index = table->getColumnIndex(expr->column);
-    if (col_index == -1) {
-        throw SqlDBException("column does not exist: " + expr->column);
-    }
-    expr->value_index = table_used_columns_count;
-    table_used_columns[table_used_columns_count] = col_index;
-    ++table_used_columns_count;
-}
+void setupCondition(Table *table, ExprColumn *expr,
+                    int *table_used_columns, int &table_used_columns_count);
 
-inline void setupCondition(Table *table, ExprColumn *expr,
-                           int *table_used_columns, int *table_condition_columns,
-                           int &table_used_columns_count, int &total_used_columns_count) {
-    int col_index = table->getColumnIndex(expr->column);
-    if (col_index == -1) {
-        throw SqlDBException("column does not exist: " + expr->column);
-    }
-    expr->value_index = total_used_columns_count;
-    table_used_columns[table_used_columns_count] = col_index;
-    table_condition_columns[table_used_columns_count] = total_used_columns_count;
-    ++table_used_columns_count;
-    ++total_used_columns_count;
-}
+void setupCondition(Table *table, ExprColumn *expr,
+                    int *table_used_columns, int *table_condition_columns,
+                    int &table_used_columns_count, int &total_used_columns_count);
 
-inline void setupCondition(Table *table, ExprColumn *expr, ColumnType &type, unsigned &length,
-                           int *table_used_columns, int &table_used_columns_count) {
-    int col_index = table->getColumnIndex(expr->column);
-    if (col_index == -1) {
-        throw SqlDBException("column does not exist: " + expr->column);
-    }
-    type = table->getColumnType(col_index);
-    length = table->getColumnLength(col_index);
-    expr->value_index = table_used_columns_count;
-    table_used_columns[table_used_columns_count] = col_index;
-    ++table_used_columns_count;
-}
+void setupCondition(Table *table, ExprColumn *expr, ColumnType &type, unsigned &length,
+                    int *table_used_columns, int &table_used_columns_count);
 
-inline void setupCondition(Table *table, ExprColumn *expr, ColumnType &type, unsigned &length,
-                           int *table_used_columns, int *table_condition_columns,
-                           int &table_used_columns_count, int &total_used_columns_count) {
-    int col_index = table->getColumnIndex(expr->column);
-    if (col_index == -1) {
-        throw SqlDBException("column does not exist: " + expr->column);
-    }
-    type = table->getColumnType(col_index);
-    length = table->getColumnLength(col_index);
-    expr->value_index = total_used_columns_count;
-    table_used_columns[table_used_columns_count] = col_index;
-    table_condition_columns[table_used_columns_count] = total_used_columns_count;
-    ++table_used_columns_count;
-    ++total_used_columns_count;
-}
+void setupCondition(Table *table, ExprColumn *expr, ColumnType &type, unsigned &length,
+                    int *table_used_columns, int *table_condition_columns,
+                    int &table_used_columns_count, int &total_used_columns_count);
 
 void searchTableColumn(Table *primary, Table *secondary, const std::string &column,
-                       int &primary_index, int &secondary_index) {
-    primary_index = primary->getColumnIndex(column);
-    if (primary_index == -1) {
-        secondary_index = secondary->getColumnIndex(column);
-        if (secondary_index == -1) {
-            throw SqlDBException("column not found: " + column);
-        }
-    }
-}
+                       int &primary_index, int &secondary_index);
 
 void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditions,
-                           const std::function<void(RecordCursor &, bool satisfied)> &callback) {
-    RecordCursor cursor(table);
-    std::vector<Type *> condition_values;
-    int used_columns[MAX_COLUMN];
-    int used_columns_count = 0;
-    // bind condition values to condition columns
-    for (auto condition: conditions) {
-        if (condition->getType() == ConditionType::Cmp) {
-            auto condition_ = dynamic_cast<ConditionCmp *>(condition);
-            // prepare lhs column expression
-            ColumnType lhs_type;
-            unsigned lhs_length;
-            auto lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
-            setupCondition(table, lhs, lhs_type, lhs_length,
-                           used_columns, used_columns_count);
-            if (condition_->rhs->getType() == ExpressionType::COLUMN) {
-                // prepare lhs column expression
-                auto rhs = dynamic_cast<ExprColumn *>(condition_->rhs);
-                setupCondition(table, rhs, used_columns, used_columns_count);
-            } else if (condition_->rhs->getType() == ExpressionType::VALUE) {
-                auto rhs = dynamic_cast<ExprValue *>(condition_->rhs);
-                auto buffer = new unsigned char[lhs_length];
-                serializeFromString(rhs->value_s, lhs_type, buffer, lhs_length);
-                rhs->value = deserialize(buffer, lhs_type, lhs_length);
-                delete[] buffer;
-            } else {
-                throw SqlDBException("invalid expression type");
-            }
-        } else {
-            // TODO
-        }
-    }
-    condition_values.resize(used_columns_count);
-    while (cursor.next()) {
-        for (int i = 0; i < used_columns_count; ++i) {
-            condition_values[i] = cursor.get(used_columns[i]);
-        }
-        bool satisfied = true;
-        for (auto condition: conditions) {
-            if (!condition->satisfy(condition_values)) {
-                satisfied = false;
-                break;
-            }
-        }
-        callback(cursor, satisfied);
-        for (auto &condition: condition_values) {
-            delete condition;
-        }
-    }
-}
+                           const std::function<void(RecordCursor &, bool satisfied)> &callback);
 
 void conditionalSelect(const std::string &table_name,
                        const std::vector<std::tuple<std::string, std::string>> &columns,
@@ -463,5 +367,31 @@ void OpTableSelect::execute(Printer *printer) {
         default:
             throw SqlDBException("invalid table count");
     }
+}
 
+void OpTableAlterAddIndex::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    if (this->columns.size() != 1) {
+        throw SqlDBException("only support single column index");
+    }
+    auto table = new Table(this->name);
+    int column_index = table->getColumnIndex(this->columns[0]);
+    if (column_index == -1) {
+        throw SqlDBException("column not found: " + this->columns[0]);
+    }
+    if (table->getColumnType(column_index) != ColumnType::INT) {
+        throw SqlDBException("only support int column index");
+    }
+    if (table->hasIndex(column_index)) {
+        throw SqlDBException("index already exists");
+    }
+    FileManager::fm().createFile(this->name + "." + this->columns[0]);
+    auto index = IntIndex::createIndex(this->name, this->columns[0]);
+    conditionalIterRecord(table, {}, [&](RecordCursor &cursor, bool satisfied) {
+        index->insert(dynamic_cast<Int *>(cursor.get(column_index))->getValue(),
+                      cursor.getOffset());
+    });
+    table->addIndex(column_index);
+    delete index;
+    delete table;
 }

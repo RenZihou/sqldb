@@ -245,3 +245,11 @@ void Table::insertRecord(const std::vector<std::string> &values) {
     this->_insertRecord(data);
     delete[] data;
 }
+
+void Table::addIndex(int column) {
+    this->header->column_info[column].flags |= FLAG_HAS_INDEX;
+}
+
+bool Table::hasIndex(int column) {
+    return this->header->column_info[column].flags & FLAG_HAS_INDEX;
+}

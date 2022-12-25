@@ -47,6 +47,16 @@ void Database::dropDb(const std::string &name) {
     if (std::find(this->databases.begin(), this->databases.end(), name) == this->databases.end()) {
         throw SqlDBException("database does not exist: " + name);
     }
+    if (this->current_db == name) {
+        BufferManager::bm().writeBackAll();
+        for (auto &table : this->tables) {
+            FileManager::fm().closeFile(table);
+        }
+        FileManager::fm().closeFile(".tables");
+        FileManager::fm().setWd(".");
+        this->current_db = "";
+        this->tables.clear();
+    }
     this->databases.erase(std::remove(this->databases.begin(), this->databases.end(), name),
                           this->databases.end());
     FileManager::fm().rmDir(name);
@@ -60,9 +70,9 @@ void Database::useDb(const std::string &name) {
     for (auto &table: this->tables) {
         FileManager::fm().closeFile(table);
     }
-    FileManager::fm().closeFile(".table");
+    FileManager::fm().closeFile(".tables");
     FileManager::fm().setWd(name);
-    current_db = name;
+    this->current_db = name;
     if (FileManager::fm().fileExists(".tables") == -1) {
         FileManager::fm().createFile(".tables");
         DummyPrinter printer;

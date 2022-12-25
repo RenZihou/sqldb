@@ -1,6 +1,7 @@
 add_subdirectory(util)
 add_subdirectory(pagefile)
 add_subdirectory(table)
+add_subdirectory(index)
 add_subdirectory(system)
 add_subdirectory(parser)
 add_subdirectory(query)

@@ -17,4 +17,4 @@ add_subdirectory(src)
 add_executable(sqldb src/main.cpp)
 
 target_link_libraries(antlr4-runtime Threads::Threads)
-target_link_libraries(sqldb query parser system query parser table pagefile util antlr4-runtime)  # TODO better depending chain
+target_link_libraries(sqldb query parser system query parser index table pagefile util antlr4-runtime)  # TODO better depending chain

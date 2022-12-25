@@ -67,25 +67,25 @@ private:
     [[nodiscard]] unsigned _getSlotNum() const;
 
     /**
+     * @brief convert record offset to (page, slot) pair
      * @param offset record offset
      * @param page page number (to be filled)
      * @param slot slot number (to be filled)
-     * @description convert record offset to (page, slot) pair
      */
     void _offset_to_slot(unsigned offset, unsigned &page, unsigned &slot) const;
 
     void _slot_to_offset(unsigned &offset, unsigned page, unsigned slot) const;
 
     /**
+     * @brief insert a record into table
      * @param data serialized data including null flag
-     * @description insert a record into table
      */
     void _insertRecord(void *data);
 
     /**
+     * @brief delete a record from table
      * @param page record page
      * @param slot record slot in page
-     * @description delete a record from table
      */
     void _deleteRecord(unsigned page, unsigned slot);
 
@@ -128,30 +128,41 @@ public:
     [[nodiscard]] unsigned getColumnLength(int index) const;
 
     /**
+     * @brief add `has index` flag to a column
+     * @param column column that (will) have index
+     */
+    void addIndex(int column);
+
+    /**
+     * @param column
+     * @return whether the column has a `has index` flag
+     */
+    bool hasIndex(int column);
+
+    /**
      * @return column names
      */
     [[nodiscard]] std::vector<std::string> getColumns() const;
 
     /**
+     * @brief create new table, this will create the table file only
      * @param table_name table name
      * @return created table pointer, nullptr if created failed
-     * @description create new table, this will create the table file only
      */
     static Table *createTable(const std::string &table_name);
 
     /**
+     * @brief (ONLY CALL ON CREATE TABLE FOR NOW) add a new column to the table
      * @param column new column info
      * @param after insert after which column, set "" to insert at the beginning
-     * @description (ONLY CALL ON CREATE TABLE FOR NOW) add a new column to the table
      */
     void addColumn(const Column &column, const std::string &after);
 
     /**
+     * @brief insert a new record into table
      * @param values list of values in plain text sorted by column index
-     * @description insert a new record into table
      */
     void insertRecord(const std::vector<std::string> &values);
-
 };
 
 #endif  // TABLE_H_

@@ -15,7 +15,7 @@ Sum: 'SUM';
 Null: 'NULL';
 
 Identifier: [a-zA-Z_] [a-zA-Z_0-9]*;
-Integer: [0-9]+;
+Integer: [0-9]+;  // TODO - handle negative numbers
 String:  '\'' (~'\'')* '\'';
 Float: ('-')? [0-9]+ '.' [0-9]*;
 Whitespace: [ \t\n\r]+ -> skip;

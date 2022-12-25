@@ -37,6 +37,8 @@ public:
 
     std::any visitSelectTable(SQLParser::SelectTableContext *ctx) override;
 
+    std::any visitAlterAddIndex(SQLParser::AlterAddIndexContext *ctx) override;
+
     std::any visitFieldList(SQLParser::FieldListContext *ctx) override;
 
     std::any visitNormalField(SQLParser::NormalFieldContext *ctx) override;

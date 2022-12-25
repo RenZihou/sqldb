@@ -104,6 +104,13 @@ std::any Visitor::visitSelectTable(SQLParser::SelectTableContext *ctx) {
     return dynamic_cast<Op *>(op);
 }
 
+std::any Visitor::visitAlterAddIndex(SQLParser::AlterAddIndexContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
+    auto *op = new OpTableAlterAddIndex(name, columns);
+    return dynamic_cast<Op *>(op);
+}
+
 std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
     std::vector<Column> fields;
     for (auto &field: ctx->field()) {

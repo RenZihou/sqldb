@@ -2,8 +2,8 @@
 // -*- encoding: utf-8 -*-
 // @Author: RenZihou
 
-#ifndef CURSOR_H_
-#define CURSOR_H_
+#ifndef TABLE_CURSOR_H_
+#define TABLE_CURSOR_H_
 
 #include <cstring>
 
@@ -64,6 +64,10 @@ public:
                            this->table->header->column_info[column].length);
     }
 
+    [[nodiscard]] unsigned getOffset() const {
+        return (this->page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE + this->slot * this->table->_getRecordSizeWithFlag();
+    }
+
     void del() {
         this->table->_deleteRecord(this->page, this->slot);
     }
@@ -79,10 +83,23 @@ public:
         this->table->_updateRecord(this->page, this->slot, this->cached_record);
     }
 
+    /**
+     * @brief move cursor to given offset in table
+     * @param offset offset of a record
+     * @param do_validate [NO USE NOW: WILL ALWAYS SKIP VALIDATION, AND CANNOT FURTHER `next()`]
+     */
+    void moveTo(unsigned offset, bool do_validate = true) {
+        this->table->_offset_to_slot(offset, this->page, this->slot);
+        int index = BufferManager::bm().getPage(this->table->name, this->page);
+        memcpy(this->cached_record,
+               BufferManager::bm().readBuffer(index) + (offset & PAGE_SIZE_MASK),
+               this->table->_getRecordSizeWithFlag());
+    }
+
     void reset() {
         this->page = Table::_getHeaderPageNum() - 1;
         this->slot = table->_getSlotNum() - 1;
     }
 };
 
-#endif  // CURSOR_H_
+#endif  // TABLE_CURSOR_H_
