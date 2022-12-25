@@ -11,6 +11,9 @@
 #include "../table/type.h"
 #include "../table/cursor.h"
 
+enum class CompareType {
+    EQ, NE, LT, LE, GT, GE, LIKE, IN
+};
 
 struct CmpOp {
 //public:
@@ -18,30 +21,44 @@ struct CmpOp {
 
     virtual ~CmpOp() = default;
 
+    [[nodiscard]] virtual CompareType getType() const = 0;
+
     virtual bool operator()(const Type *lhs, const Type *rhs) = 0;
 };
 
 struct Equal : public CmpOp {
+    [[nodiscard]] CompareType getType() const override { return CompareType::EQ; }
+
     bool operator()(const Type *lhs, const Type *rhs) override { return *lhs == *rhs; }
 };
 
 struct Greater : public CmpOp {
+    [[nodiscard]] CompareType getType() const override { return CompareType::GT; }
+
     bool operator()(const Type *lhs, const Type *rhs) override { return *lhs > *rhs; }
 };
 
 struct Less : public CmpOp {
+    [[nodiscard]] CompareType getType() const override { return CompareType::LT; }
+
     bool operator()(const Type *lhs, const Type *rhs) override { return *lhs < *rhs; }
 };
 
 struct GreaterEqual : public CmpOp {
+    [[nodiscard]] CompareType getType() const override { return CompareType::GE; }
+
     bool operator()(const Type *lhs, const Type *rhs) override { return *lhs >= *rhs; }
 };
 
 struct LessEqual : public CmpOp {
+    [[nodiscard]] CompareType getType() const override { return CompareType::LE; }
+
     bool operator()(const Type *lhs, const Type *rhs) override { return *lhs <= *rhs; }
 };
 
 struct NotEqual : public CmpOp {
+    [[nodiscard]] CompareType getType() const override { return CompareType::NE; }
+
     bool operator()(const Type *lhs, const Type *rhs) override { return *lhs != *rhs; }
 };
 

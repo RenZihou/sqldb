@@ -6,6 +6,7 @@
 #define TYPE_H_
 
 #include <string>
+#include <utility>
 
 #include "../util/constants.h"
 
@@ -48,6 +49,8 @@ private:
 
 public:
     explicit Int(BufType buf) : Type(), value(*(int *) buf) {}
+
+    explicit Int(const std::string& expr) : Type(), value(std::stoi(expr)) {}
 
     [[nodiscard]] ColumnType getType() const override { return ColumnType::INT; }
 
@@ -93,6 +96,8 @@ private:
 public:
     explicit Float(BufType buf) : Type(), value(*(float *) buf) {}
 
+    explicit Float(const std::string &expr) : Type(), value(std::stof(expr)) {}
+
     [[nodiscard]] ColumnType getType() const override { return ColumnType::FLOAT; }
 
     [[nodiscard]] std::string toString() const override { return std::to_string(value); }
@@ -134,6 +139,8 @@ private:
 public:
     explicit VarChar(BufType buf, unsigned length) : Type(), value((char *) buf) {}
 
+    explicit VarChar(std::string expr) : Type(), value(std::move(expr)) {}
+
     [[nodiscard]] ColumnType getType() const override { return ColumnType::VARCHAR; }
 
     [[nodiscard]] std::string toString() const override { return value; }
@@ -166,6 +173,39 @@ public:
     bool operator!=(const Type &rhs) const override {
         return rhs.getType() == ColumnType::VARCHAR
                && this->value != dynamic_cast<const VarChar *>(&rhs)->value;
+    }
+};
+
+class Null : public Type {
+public:
+    explicit Null() : Type() {}
+
+    [[nodiscard]] ColumnType getType() const override { return ColumnType::UNKNOWN; }
+
+    [[nodiscard]] std::string toString() const override { return "NULL"; }
+
+    bool operator==(const Type &rhs) const override {
+        return false;
+    }
+
+    bool operator>(const Type &rhs) const override {
+        return false;
+    }
+
+    bool operator<(const Type &rhs) const override {
+        return true;
+    }
+
+    bool operator>=(const Type &rhs) const override {
+        return false;
+    }
+
+    bool operator<=(const Type &rhs) const override {
+        return true;
+    }
+
+    bool operator!=(const Type &rhs) const override {
+        return true;
     }
 };
 

@@ -32,7 +32,7 @@ public:
 
     bool next(int &key, unsigned &record_offset) {
         if (pos == (cached_index.size & ~(1 << 31))) {  // cache new index node
-            if (this->cached_index.children[cached_index.size] == 0) return false;
+            if (this->cached_index.children[cached_index.size & ~(1 << 31)] == 0) return false;
             int i = BufferManager::bm().getPage(this->index->table + "." + this->index->column,
                                                 this->cached_index.children[cached_index.size]
                                                         >> PAGE_SIZE_IDX);

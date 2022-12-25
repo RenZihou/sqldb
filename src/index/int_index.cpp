@@ -195,6 +195,7 @@ void IntIndex::insert(int key, unsigned record_offset) {
             node->children[j + 1] = node->children[j];
         }
         node->keys[i] = key;
+        node->children[i + 1] = node->children[i];
         node->children[i] = record_offset;
         ++node->size;
         this->_writeNode(node, offset);
@@ -388,6 +389,7 @@ unsigned IntIndex::search(int key, unsigned &pos, unsigned &offset) {
         return 0;
     }
     auto node = this->_readNode(this->header->root);
+    offset = this->header->root;
     while (!(node->size & (1 << 31))) {  // find leaf node to insert
         bool found = false;
         for (unsigned i = 0; i < node->size; i++) {  // flag = 0, no need to mask
@@ -406,7 +408,7 @@ unsigned IntIndex::search(int key, unsigned &pos, unsigned &offset) {
         }
     }
     for (pos = 0; pos < (node->size & ~(1 << 31)); pos++) {
-        if (node->keys[pos] == key) {
+        if (node->keys[pos] >= key) {
             return node->children[pos];
         }
     }
