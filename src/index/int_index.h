@@ -21,7 +21,12 @@ struct IntIndexHeader {
 struct IntIndexNode {
     unsigned size;  // [1 bit identifies whether leaf node | 31 bit for key size]
     int keys[BTREE_ORDER];
-    unsigned children[BTREE_ORDER + 1];  // for leaf node, this records the offset of the record
+    unsigned children[BTREE_ORDER + 1];  // for leaf node, this records the offset of the record, the least significant bit indicates whether links to overflow node
+};
+
+struct IntIndexOverflowNode {  // used to store duplicated keys
+    unsigned size;
+    unsigned children[2 * BTREE_ORDER + 1];  // make sure it has the same size with IntIndexNode
 };
 
 /**

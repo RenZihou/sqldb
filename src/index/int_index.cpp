@@ -187,9 +187,41 @@ void IntIndex::insert(int key, unsigned record_offset) {
         }
     }
     unsigned size = node->size & ~(1 << 31);
-    if (size < BTREE_ORDER) {  // can insert directly
-        unsigned i = 0;
-        while (key > node->keys[i] && i < size) ++i;
+    unsigned i = 0;
+    while (i < size && key > node->keys[i]) ++i;
+    if (i < size && key == node->keys[i]) {  // insert into overflow node
+        if (node->children[i] & 1) {  // already have an overflow node
+            auto overflow_node = (IntIndexOverflowNode *)this->_readNode(node->children[i]);
+            unsigned new_overflow_offset = node->children[i];
+            while (overflow_node->size == 2 * BTREE_ORDER) {  // find the last one to insert
+                new_overflow_offset = overflow_node->children[2 * BTREE_ORDER];
+                if (new_overflow_offset == 0) {
+                    delete overflow_node;
+                    overflow_node = (IntIndexOverflowNode *)this->_newNode(new_overflow_offset);
+                    break;
+                } else {
+                    delete overflow_node;
+                    overflow_node = (IntIndexOverflowNode *)this->_readNode(new_overflow_offset);
+                }
+            }
+            overflow_node->children[overflow_node->size] = record_offset;
+            ++overflow_node->size;
+            this->_writeNode((IntIndexNode *)overflow_node, new_overflow_offset);
+            delete overflow_node;
+            delete node;
+        } else {  // create a new overflow node and insert two records
+            unsigned old_record_offset = node->children[i];
+            auto overflow_node = (IntIndexOverflowNode *)this->_newNode(node->children[i]);
+            overflow_node->children[0] = old_record_offset;
+            overflow_node->children[1] = record_offset;
+            overflow_node->size = 2;
+            this->_writeNode((IntIndexNode *)overflow_node, node->children[i]);
+            node->children[i] |= 1;
+            this->_writeNode(node, offset);
+            delete overflow_node;
+            delete node;
+        }
+    } else if (size < BTREE_ORDER) {  // can insert directly
         for (unsigned j = size; j > i; j--) {
             node->keys[j] = node->keys[j - 1];
             node->children[j + 1] = node->children[j];
@@ -205,8 +237,9 @@ void IntIndex::insert(int key, unsigned record_offset) {
         auto new_leaf = this->_newNode(new_leaf_offset);
         int virtual_node_keys[BTREE_ORDER + 1];  // force insert into a larger virtual node
         unsigned virtual_node_children[BTREE_ORDER + 2];
-        unsigned i = 0, j;
-        while (key > node->keys[i] && i < BTREE_ORDER) {
+        unsigned j;
+        i = 0;
+        while (i < BTREE_ORDER && key > node->keys[i]) {
             virtual_node_keys[i] = node->keys[i];
             virtual_node_children[i] = node->children[i];
             ++i;
