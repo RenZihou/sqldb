@@ -11,24 +11,29 @@
 #include "../parser/parser.h"
 #include "../util/exception.h"
 
-void print_prompt() {
-    if (Database::db().getCurrentDb().empty()) {
-        std::cout << "SqlDB > ";
-    } else {
-        std::cout << "SqlDB (" << Database::db().getCurrentDb() << ") > ";
-    }
+void print_prompt(bool multi_line = false) {
+    std::string prompt = Database::db().getCurrentDb().empty()
+            ? "SqlDB" : "SqlDB (" + Database::db().getCurrentDb() + ")";
+    std::cout << (multi_line ? std::string(prompt.size(), '.') + ".. " : prompt + " > ");
 }
 
 int start_loop() {
     std::string command;
+    std::string line;
     Op *op;
     Printer printer;
     while (true) {
         // read
-        print_prompt();
-        getline(std::cin, command);
+        bool multi_line = false;
+        command.clear();
+        do {
+            print_prompt(multi_line);
+            getline(std::cin, line);
+            if (!multi_line && line == "QUIT") return 0;
+            command += line.empty() ? "" : " " + line;
+            multi_line = true;
+        } while (!command.empty() && command[command.size() - 1] != ';');
         // parse
-        if (command == "QUIT") break;  // handle meta-commands
         op = parse(command);  // sql commands
         // TODO logical optimization here
         // execute
@@ -44,5 +49,4 @@ int start_loop() {
         // print
         delete op;
     }
-    return 0;
 }
