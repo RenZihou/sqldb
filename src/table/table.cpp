@@ -168,6 +168,20 @@ unsigned Table::getColumnLength(int index) const {
     return this->header->column_info[index].length;
 }
 
+bool Table::getColumnNullable(int index) const {
+    return !(this->header->column_info[index].flags & FLAG_NOT_NULL);
+}
+
+Type *Table::getColumnDefault(int index) const {
+    if (this->header->column_info[index].flags & FLAG_HAS_DEFAULT) {
+        return deserialize(this->header->defaults + this->header->column_info[index].offset,
+                           this->header->column_info[index].type,
+                           this->header->column_info[index].length);
+    } else {
+        return nullptr;
+    }
+}
+
 std::vector<std::string> Table::getColumns() const {
     std::vector<std::string> columns;
     for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
@@ -222,13 +236,13 @@ void Table::addColumn(const Column &column, const std::string &after) {
             index == 0 ? sizeof(unsigned) : this->header->column_info[index - 1].offset
                              + this->header->column_info[index - 1].length;
     ++this->header->columns;
+    // move defaults to the right
+    unsigned offset_begin = this->header->column_info[index].offset;
+    unsigned offset_end = offset_begin + this->header->column_info[index].length;
+    memcpy(this->header->defaults + offset_end,
+           this->header->defaults + offset_begin,
+           sizeof(this->header->defaults) - offset_end);
     if (column.flags & FLAG_HAS_DEFAULT) {
-        // move defaults to the right
-        unsigned offset_begin = this->header->column_info[index].offset;
-        unsigned offset_end = offset_begin + this->header->column_info[index].length;
-        memcpy(this->header->defaults + offset_end,
-               this->header->defaults + offset_begin,
-               sizeof(this->header->defaults) - offset_end);
         serializeFromString(column.default_value, column.type,
                             this->header->defaults + offset_begin,
                             column.length);
@@ -263,4 +277,38 @@ void Table::addIndex(int column) {
 
 bool Table::hasIndex(int column) {
     return this->header->column_info[column].flags & FLAG_HAS_INDEX;
+}
+
+void Table::dropIndex(int column) {
+    this->header->column_info[column].flags &= ~FLAG_HAS_INDEX;
+}
+
+void Table::addPrimaryKey(int column, const std::string &key) {
+    if (key.length() >= MAX_KEY_LEN - 1) {
+        throw SqlDBException("key too long");
+    }
+    this->header->column_info[column].flags |= FLAG_IS_PRIMARY;
+    memcpy(this->header->primary_key, key.c_str(), key.length() + 1);
+}
+
+bool Table::isPrimaryKey(int column) {
+    return this->header->column_info[column].flags & FLAG_IS_PRIMARY;
+}
+
+bool Table::getPrimaryKey(int &column, std::string &key) {
+    for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
+        if (this->header->column_info[i].flags & FLAG_IS_PRIMARY) {
+            column = i;
+            key = this->header->primary_key;
+            return true;
+        }
+    }
+    return false;
+}
+
+void Table::dropPrimaryKey() {
+    for (unsigned i = 0; i < this->header->columns; ++i) {
+        this->header->column_info[i].flags &= ~FLAG_IS_PRIMARY;
+    }
+    this->header->primary_key[0] = '\0';
 }

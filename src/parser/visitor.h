@@ -27,6 +27,8 @@ public:
 
     std::any visitDropTable(SQLParser::DropTableContext *ctx) override;
 
+    std::any visitDescribeTable(SQLParser::DescribeTableContext *ctx) override;
+
     std::any visitInsertIntoTable(SQLParser::InsertIntoTableContext *ctx) override;
 
     std::any visitDeleteFromTable(SQLParser::DeleteFromTableContext *ctx) override;
@@ -39,9 +41,17 @@ public:
 
     std::any visitAlterAddIndex(SQLParser::AlterAddIndexContext *ctx) override;
 
+    std::any visitAlterDropIndex(SQLParser::AlterDropIndexContext *ctx) override;
+
+    std::any visitAlterTableDropPk(SQLParser::AlterTableDropPkContext *ctx) override;
+
+    std::any visitAlterTableAddPk(SQLParser::AlterTableAddPkContext *ctx) override;
+
     std::any visitFieldList(SQLParser::FieldListContext *ctx) override;
 
     std::any visitNormalField(SQLParser::NormalFieldContext *ctx) override;
+
+    std::any visitPrimaryKeyField(SQLParser::PrimaryKeyFieldContext *ctx) override;
 
     std::any visitType(SQLParser::TypeContext *ctx) override;
 

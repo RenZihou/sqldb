@@ -16,7 +16,7 @@ void Database::boost() {
                 .type=ColumnType::VARCHAR,
                 .length=MAX_DATABASE_NAME_LEN,
                 .flags=0,
-                .default_value=""}}).execute(nullptr);
+                .default_value=""}}, {}).execute(nullptr);
     } else {
         MemoryStringPrinter printer;
         OpTableSelect({std::make_tuple("", "*")}, {".dbs"}, {}).execute(&printer);
@@ -81,7 +81,7 @@ void Database::useDb(const std::string &name) {
                 .type=ColumnType::VARCHAR,
                 .length=MAX_TABLE_NAME_LEN,
                 .flags=0,
-                .default_value=""}}).execute(&printer);
+                .default_value=""}}, {}).execute(&printer);
         this->tables.clear();
     } else {
         MemoryStringPrinter printer;

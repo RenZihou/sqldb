@@ -26,11 +26,13 @@ typedef unsigned char *BufType;
 #define PAGE_HEADER_SIZE 100  // data-page header size in bytes, used to store occupied info
 #define MAX_COLUMN 32  // max column number in a table, must <= 8 * sizeof(unsigned)
 #define MAX_COLUMN_NAME_LEN 128  // max column name length in a table
+#define MAX_KEY_LEN MAX_COLUMN_NAME_LEN  // max primary / foreign key length
 #define MAX_RECORD_SIZE 4080  // max record size in a table, must <= PAGE_SIZE - PAGE_HEADER_SIZE - sizeof(unsigned)
 
 #define FLAG_NOT_NULL 1  // bit mask of not null flag
 #define FLAG_HAS_DEFAULT 2  // bit mask of has default flag
 #define FLAG_HAS_INDEX 4  // bit mask of has index flag
+#define FLAG_IS_PRIMARY 8  // bit mask of is primary flag (do not support composite primary key)
 
 /* ==== index ==== */
 

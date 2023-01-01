@@ -38,6 +38,7 @@ struct TableHeader {
     ColumnInfo column_info[MAX_COLUMN];
     unsigned char defaults[MAX_RECORD_SIZE + sizeof(unsigned)];
     // TODO constraints
+    char primary_key[MAX_KEY_LEN];
 };
 
 class Table {
@@ -129,16 +130,16 @@ public:
     [[nodiscard]] unsigned getColumnLength(int index) const;
 
     /**
-     * @brief add `has index` flag to a column
-     * @param column column that (will) have index
+     * @param index column index, caller should ensure index is valid
+     * @return whether column can be null
      */
-    void addIndex(int column);
+    [[nodiscard]] bool getColumnNullable(int index) const;
 
     /**
-     * @param column
-     * @return whether the column has a `has index` flag
+     * @param index column index, caller should ensure index is valid
+     * @return column default value
      */
-    bool hasIndex(int column);
+    [[nodiscard]] Type *getColumnDefault(int index) const;
 
     /**
      * @return column names
@@ -164,6 +165,47 @@ public:
      * @param values list of values in plain text sorted by column index
      */
     void insertRecord(const std::vector<std::string> &values);
+
+    /**
+     * @brief add `has index` flag to a column
+     * @param column column that (will) have index
+     */
+    void addIndex(int column);
+
+    /**
+     * @param column
+     * @return whether the column has a `has index` flag
+     */
+    bool hasIndex(int column);
+
+    /**
+     * @brief erase `has index` flag on given column
+     * @param column
+     */
+    void dropIndex(int column);
+
+    /**
+     * @brief add primary key to table
+     * @param column primary key column
+     * @param key primary key name (can be empty)
+     */
+    void addPrimaryKey(int column, const std::string &key);
+
+    /**
+     * @param column
+     * @return whether the column is primary key
+     */
+    bool isPrimaryKey(int column);
+
+    /**
+     * @return whether has primary key
+     */
+    bool getPrimaryKey(int &column, std::string &key);
+
+    /**
+     * @brief drop (the only) primary key
+     */
+    void dropPrimaryKey();
 };
 
 #endif  // TABLE_H_

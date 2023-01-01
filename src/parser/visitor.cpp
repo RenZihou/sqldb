@@ -54,14 +54,23 @@ std::any Visitor::visitShowTables(SQLParser::ShowTablesContext *ctx) {
 
 std::any Visitor::visitCreateTable(SQLParser::CreateTableContext *ctx) {
     std::string name = ctx->Identifier()->getText();
-    auto columns = std::any_cast<std::vector<Column>>(visit(ctx->fieldList()));
-    auto *op = new OpTableCreate(name, columns);
+    auto [columns, pk_info] = std::any_cast<std::tuple<
+                    std::vector<Column>,
+                    std::vector<std::tuple<std::string, std::vector<std::string>>>>>(visit(ctx->fieldList()));
+    auto *op = new OpTableCreate(name, columns, pk_info);
+
     return dynamic_cast<Op *>(op);
 }
 
 std::any Visitor::visitDropTable(SQLParser::DropTableContext *ctx) {
     std::string name = ctx->Identifier()->getText();
     auto *op = new OpTableDrop(name);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitDescribeTable(SQLParser::DescribeTableContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto *op = new OpTableDescribe(name);
     return dynamic_cast<Op *>(op);
 }
 
@@ -81,7 +90,8 @@ std::any Visitor::visitDeleteFromTable(SQLParser::DeleteFromTableContext *ctx) {
 
 std::any Visitor::visitUpdateTable(SQLParser::UpdateTableContext *ctx) {
     std::string name = ctx->Identifier()->getText();
-    auto sets = std::any_cast<std::vector<std::tuple<std::string, std::string>>>(visit(ctx->setClause()));
+    auto sets = std::any_cast<std::vector<std::tuple<std::string, std::string>>>(
+            visit(ctx->setClause()));
     auto wheres = std::any_cast<std::vector<Condition *>>(visit(ctx->whereAndClause()));
     auto *op = new OpTableUpdate(name, sets, wheres);
     return dynamic_cast<Op *>(op);
@@ -111,12 +121,44 @@ std::any Visitor::visitAlterAddIndex(SQLParser::AlterAddIndexContext *ctx) {
     return dynamic_cast<Op *>(op);
 }
 
+std::any Visitor::visitAlterDropIndex(SQLParser::AlterDropIndexContext *ctx) {
+    std::string name = ctx->Identifier()->getText();
+    auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
+    auto *op = new OpTableAlterDropIndex(name, columns);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitAlterTableDropPk(SQLParser::AlterTableDropPkContext *ctx) {
+    std::string name = ctx->Identifier(0)->getText();
+    std::string pk = ctx->Identifier(1) ? ctx->Identifier(1)->getText() : "";
+    auto *op = new OpTableAlterDropPk(name, pk);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitAlterTableAddPk(SQLParser::AlterTableAddPkContext *ctx) {
+    std::string name = ctx->Identifier(0)->getText();
+    std::string pk = ctx->Identifier(1) ? ctx->Identifier(1)->getText() : "";
+    auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
+    auto *op = new OpTableAlterAddPk(name, pk, columns);
+    return dynamic_cast<Op *>(op);
+}
+
 std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
     std::vector<Column> fields;
+    std::vector<std::tuple<std::string, std::vector<std::string>>> pk_info;
     for (auto &field: ctx->field()) {
-        fields.push_back(std::any_cast<Column>(visit(field)));
+        switch (field->getStart()->getType()) {  // TODO this is a dirty hack
+            case 34:  // PRIMARY
+                pk_info.push_back(std::any_cast<std::tuple<std::string, std::vector<std::string>>>(
+                        visit(field)));
+                break;
+            case 36:  // FOREIGN
+                break;
+            default:  // other -> normal field
+                fields.push_back(std::any_cast<Column>(visit(field)));
+        }
     }
-    return fields;
+    return std::make_tuple(fields, pk_info);
 }
 
 std::any Visitor::visitNormalField(SQLParser::NormalFieldContext *ctx) {
@@ -124,13 +166,19 @@ std::any Visitor::visitNormalField(SQLParser::NormalFieldContext *ctx) {
     char flags = 0;
     flags |= ctx->value() ? FLAG_HAS_DEFAULT : 0;
     flags |= ctx->Null() ? FLAG_NOT_NULL : 0;
-    auto type = std::any_cast<std::tuple<ColumnType, unsigned>>(visit(ctx->type()));
+    auto [type, length] = std::any_cast<std::tuple<ColumnType, unsigned>>(visit(ctx->type()));
     std::string default_value;
     if (ctx->value() != nullptr) {  // default value
         default_value = std::any_cast<std::string>(visit(ctx->value()));
     }
-    return Column{.name=name, .type=std::get<0>(type), .length=std::get<1>(type),
+    return Column{.name=name, .type=type, .length=length,
             .flags=flags, .default_value=default_value};
+}
+
+std::any Visitor::visitPrimaryKeyField(SQLParser::PrimaryKeyFieldContext *ctx) {
+    std::string name = ctx->Identifier() ? ctx->Identifier()->getText() : "";
+    auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
+    return std::make_tuple(name, columns);
 }
 
 std::any Visitor::visitType(SQLParser::TypeContext *ctx) {
@@ -183,17 +231,17 @@ std::any Visitor::visitWhereAndClause(SQLParser::WhereAndClauseContext *ctx) {
 }
 
 std::any Visitor::visitWhereOperatorExpression(SQLParser::WhereOperatorExpressionContext *ctx) {
-    auto lhs = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->column()));
-    auto rhs = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->expression()));
+    auto [lhs_table, lhs_column] = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->column()));
+    auto [rhs_table, rhs_column] = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->expression()));
     auto op = std::any_cast<CmpOp *>(visit(ctx->operator_()));
-    if (std::get<1>(rhs).empty()) {  // value
+    if (rhs_column.empty()) {  // value
         return dynamic_cast<Condition *>(
-                new ConditionCmp(new ExprColumn(std::get<0>(lhs), std::get<1>(lhs)),
-                                 new ExprValue(std::get<0>(rhs)), op));
+                new ConditionCmp(new ExprColumn(lhs_table, lhs_column),
+                                 new ExprValue(rhs_table), op));
     } else {  // column
         return dynamic_cast<Condition *>(
-                new ConditionCmp(new ExprColumn(std::get<0>(lhs), std::get<1>(lhs)),
-                                 new ExprColumn(std::get<0>(rhs), std::get<1>(rhs)), op));
+                new ConditionCmp(new ExprColumn(lhs_table, lhs_column),
+                                 new ExprColumn(rhs_table, rhs_column), op));
     }
 }
 

@@ -29,6 +29,9 @@ enum class OpType {
     TABLE_UPDATE,
     TABLE_SELECT,
     TABLE_ALTER_ADD_INDEX,
+    TABLE_ALTER_DROP_INDEX,
+    TABLE_ALTER_ADD_PK,
+    TABLE_ALTER_DROP_PK,
     UNKNOWN
 };
 
@@ -107,10 +110,11 @@ class OpTableCreate : public Op {
 private:
     std::string name;
     std::vector<Column> columns;
+    std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys;
 
 public:
-    OpTableCreate(std::string name, std::vector<Column> columns)
-            : Op(), name(std::move(name)), columns(std::move(columns)) {}
+    OpTableCreate(std::string name, std::vector<Column> columns, std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys)
+            : Op(), name(std::move(name)), columns(std::move(columns)), primary_keys(std::move(primary_keys)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_CREATE; }
 
@@ -125,6 +129,18 @@ public:
     explicit OpTableDrop(std::string name) : Op(), name(std::move(name)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_DROP; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableDescribe : public Op {
+private:
+    std::string name;
+
+public:
+    explicit OpTableDescribe(std::string name) : Op(), name(std::move(name)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_DESC; }
 
     void execute(Printer *printer) override;
 };
@@ -221,6 +237,49 @@ public:
             : Op(), name(std::move(name)), columns(std::move(columns)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_ADD_INDEX; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableAlterDropIndex : public Op {
+private:
+    std::string name;
+    std::vector<std::string> columns;
+
+public:
+    OpTableAlterDropIndex(std::string name, std::vector<std::string> columns)
+            : Op(), name(std::move(name)), columns(std::move(columns)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_DROP_INDEX; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableAlterAddPk : public Op {
+private:
+    std::string name;
+    std::string pk;
+    std::vector<std::string> columns;
+
+public:
+    OpTableAlterAddPk(std::string name, std::string pk, std::vector<std::string> columns)
+            : Op(), name(std::move(name)), pk(std::move(pk)), columns(std::move(columns)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_ADD_PK; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableAlterDropPk : public Op {
+private:
+    std::string name;
+    std::string pk;
+
+public:
+    OpTableAlterDropPk(std::string name, std::string pk)
+            : Op(), name(std::move(name)), pk(std::move(pk)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_DROP_PK; }
 
     void execute(Printer *printer) override;
 };
