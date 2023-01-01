@@ -491,8 +491,16 @@ void IntIndex::remove(int key, unsigned int record_offset) {
         // remove last node
         if (overflow_node->size == 1) {
             if (last_offset == 0) {  // only one overflow node, need to delete real leaf node
-                // TODO
-            } else {
+                delete overflow_node;
+                this->_deleteNode(overflow_offset);
+                node->children[pos] = record_offset;
+                this->_writeNode(node, offset);
+                delete node;
+                this->remove(key, record_offset);  // call again to delete real leaf node
+                return;
+            } else {  // delete last overflow node
+                delete overflow_node;
+                this->_deleteNode(overflow_offset);
                 overflow_node = (IntIndexOverflowNode *)this->_readNode(last_offset);
                 overflow_node->children[2 * BTREE_ORDER] = 0;
                 this->_writeNode((IntIndexNode *)overflow_node, last_offset);
@@ -500,13 +508,18 @@ void IntIndex::remove(int key, unsigned int record_offset) {
             }
         } else {
             --overflow_node->size;
+            overflow_node->children[overflow_node->size] = 0;
             this->_writeNode((IntIndexNode *)overflow_node, overflow_offset);
             delete overflow_node;
         }
         // set hit pos to last record
         overflow_node = (IntIndexOverflowNode *)this->_readNode(hit_offset);
-        overflow_node->children[hit_pos] = hit_replace;
-        this->_writeNode((IntIndexNode *)overflow_node, hit_offset);
+        if (hit_pos != overflow_node->size) {  // don't write if hit_pos is last record (already written 0)
+            overflow_node->children[hit_pos] = hit_replace;
+            this->_writeNode((IntIndexNode *)overflow_node, hit_offset);
+        }
+//        overflow_node->children[hit_pos] = hit_replace;
+//        this->_writeNode((IntIndexNode *)overflow_node, hit_offset);
         delete overflow_node;
     } else {  // links to record
         if (node->children[pos] != record_offset) return;  // although this should not happen either

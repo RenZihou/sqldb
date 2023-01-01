@@ -258,6 +258,9 @@ void OpTableAlterAddPk::execute(Printer *printer) {
     if (pk_column == -1) {
         throw SqlDBException("column not found: " + this->columns[0]);
     }
+    if (table->getColumnType(pk_column) != ColumnType::INT) {
+        throw SqlDBException("primary key must be INT type");
+    }
     table->addPrimaryKey(pk_column, this->pk);
     delete table;
     // add index

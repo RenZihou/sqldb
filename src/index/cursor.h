@@ -36,10 +36,10 @@ public:
         if (this->pos == (this->cached_index.size & ~(1 << 31))) {  // cache new index node
             if (this->cached_index.children[this->cached_index.size & ~(1 << 31)] == 0) return false;
             int i = BufferManager::bm().getPage(this->index->table + "." + this->index->column,
-                                                this->cached_index.children[this->cached_index.size] >> PAGE_SIZE_IDX);
+                                                this->cached_index.children[this->cached_index.size & ~(1 << 31)] >> PAGE_SIZE_IDX);
             memcpy(&this->cached_index,
                    BufferManager::bm().readBuffer(i) +
-                   (this->cached_index.children[this->cached_index.size] & PAGE_SIZE_MASK),
+                   (this->cached_index.children[this->cached_index.size & ~(1 << 31)] & PAGE_SIZE_MASK),
                    sizeof(IntIndexNode));
             this->pos = 0;
         }
