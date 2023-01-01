@@ -86,6 +86,16 @@ void IntIndex::_writeNode(IntIndexNode *node, unsigned offset) {
     BufferManager::bm().markDirty(index);
 }
 
+void IntIndex::_deleteNode(unsigned int offset) {
+    unsigned page, slot;
+    this->_offset_to_slot(offset, page, slot);
+    int index = BufferManager::bm().getPage(this->table + "." + this->column, page);
+    BufType buf = BufferManager::bm().readBuffer(index) + (offset & PAGE_SIZE_MASK);
+    ((unsigned *) buf)[0] = this->header->next_empty;
+    this->header->next_empty = offset;
+    BufferManager::bm().markDirty(index);
+}
+
 void IntIndex::_insertInternal(int key, unsigned int new_child_offset) {
     unsigned offset = this->_search_path.back();
     this->_search_path.pop_back();
@@ -145,6 +155,128 @@ void IntIndex::_insertInternal(int key, unsigned int new_child_offset) {
     }
 }
 
+void IntIndex::_removeInternal(int key, unsigned removed_child_offset) {
+    unsigned offset = this->_search_path.back();
+    this->_search_path.pop_back();
+    auto node = this->_readNode(offset);
+    if (offset == this->header->root) {
+        if (node->size == 1) {
+            if (node->children[1] == removed_child_offset) {
+                // only left child remains, then it becomes root
+                this->header->root = node->children[0];
+                this->_deleteNode(offset);
+                return;
+            } else /* if (node->children[0] == removed_child_offset) */ {
+                // only right child remains, then it becomes root
+                this->header->root = node->children[1];
+                this->_deleteNode(offset);
+                return;
+            }
+        }
+    }
+    int pos = 0;
+    while (pos < static_cast<int>(node->size) && key > node->keys[pos]) ++pos;  // now we reach the key
+    for (unsigned i = pos; i < node->size; ++i) {
+        node->keys[i] = node->keys[i + 1];
+    }
+    pos = 0;
+    while (pos < static_cast<int>(node->size) + 1 && removed_child_offset != node->children[pos]) ++pos;  // now we reach the child
+    for (unsigned i = pos; i < node->size + 1; ++i) {
+        node->children[i] = node->children[i + 1];
+    }
+    --node->size;
+    if (node->size >= (BTREE_ORDER + 1) / 2 - 1) return;  // no need to merge
+    if (offset == this->header->root) return;  // no need to merge
+    auto parent = this->_readNode(this->_search_path.back());
+    unsigned left_sibling, right_sibling;
+    for (pos = 0; pos < static_cast<int>(parent->size) + 1; ++pos) {
+        if (parent->children[pos] == offset) {
+            left_sibling = pos - 1;
+            right_sibling = pos + 1;
+            break;
+        }
+    }
+    if (left_sibling != -1u) {
+        auto left_node = this->_readNode(parent->children[left_sibling]);
+        if (left_node->size >= (BTREE_ORDER + 1) / 2) {  // rotate: borrow from left sibling
+            for (unsigned i = node->size; i > 0; --i) {
+                node->keys[i] = node->keys[i - 1];
+            }
+            node->keys[0] = parent->keys[left_sibling];
+            parent->keys[left_sibling] = left_node->keys[left_node->size - 1];
+            for (unsigned i = node->size + 1; i > 0; --i) {
+                node->children[i] = node->children[i - 1];
+            }
+            node->children[0] = left_node->children[left_node->size];
+            ++node->size;
+            --left_node->size;
+            this->_writeNode(node, offset);
+            this->_writeNode(left_node, parent->children[left_sibling]);
+            this->_writeNode(parent, this->_search_path.back());
+            delete node;
+            delete left_node;
+            delete parent;
+            return;
+        }
+    }
+    if (right_sibling <= parent->size) {
+        auto right_node = this->_readNode(parent->children[right_sibling]);
+        if (right_node->size >= (BTREE_ORDER + 1) / 2) {  // rotate: borrow from right sibling
+            node->keys[node->size] = parent->keys[pos];
+            parent->keys[pos] = right_node->keys[0];
+            for (unsigned i = 0; i < right_node->size - 1; i++) {
+                right_node->keys[i] = right_node->keys[i + 1];
+            }
+            node->children[node->size + 1] = right_node->children[0];
+            for (unsigned i = 0; i < right_node->size; ++i) {
+                right_node->children[i] = right_node->children[i + 1];
+            }
+            ++node->size;
+            --right_node->size;
+            this->_writeNode(node, offset);
+            this->_writeNode(right_node, parent->children[right_sibling]);
+            this->_writeNode(parent, this->_search_path.back());
+            delete node;
+            delete right_node;
+            delete parent;
+            return;
+        }
+    }
+    if (left_sibling != -1u) {
+        auto left_node = this->_readNode(parent->children[left_sibling]);
+        left_node->keys[left_node->size] = parent->keys[left_sibling];
+        for (unsigned i = left_node->size + 1, j = 0; j < node->size; ++i, ++j) {
+            left_node->keys[i] = node->keys[j];
+            left_node->children[i] = node->children[j];
+        }
+        left_node->size += node->size + 1;
+        left_node->children[left_node->size] = node->children[node->size];
+        node->size = 0;
+        this->_removeInternal(parent->keys[left_sibling], offset);
+        this->_writeNode(left_node, parent->children[left_sibling]);
+        this->_deleteNode(offset);
+        delete left_node;
+        delete node;
+        delete parent;
+    } else if (right_sibling <= parent->size) {
+        auto right_node = this->_readNode(parent->children[right_sibling]);
+        node->keys[node->size] = parent->keys[right_sibling - 1];
+        for (unsigned i = node->size + 1, j = 0; j < right_node->size; ++i, ++j) {
+            node->keys[i] = right_node->keys[j];
+            node->children[i] = right_node->children[j];
+        }
+        node->size += right_node->size + 1;
+        node->children[node->size] = right_node->children[right_node->size];
+        right_node->size = 0;
+        this->_removeInternal(parent->keys[right_sibling - 1], parent->children[right_sibling]);
+        this->_writeNode(node, offset);
+        this->_deleteNode(parent->children[right_sibling]);
+        delete right_node;
+        delete node;
+        delete parent;
+    }
+}
+
 IntIndex *IntIndex::createIndex(std::string table, std::string column) {
     auto *index = new IntIndex(std::move(table), std::move(column));
     index->header->root = 0;
@@ -191,7 +323,7 @@ void IntIndex::insert(int key, unsigned record_offset) {
     while (i < size && key > node->keys[i]) ++i;
     if (i < size && key == node->keys[i]) {  // insert into overflow node
         if (node->children[i] & 1) {  // already have an overflow node
-            auto overflow_node = (IntIndexOverflowNode *)this->_readNode(node->children[i]);
+            auto overflow_node = (IntIndexOverflowNode *)this->_readNode(node->children[i] & ~1);
             unsigned new_overflow_offset = node->children[i];
             while (overflow_node->size == 2 * BTREE_ORDER) {  // find the last one to insert
                 new_overflow_offset = overflow_node->children[2 * BTREE_ORDER];
@@ -288,7 +420,6 @@ void IntIndex::insert(int key, unsigned record_offset) {
 }
 
 void IntIndex::remove(int key, unsigned int record_offset) {
-/*
     if (this->header->root == 0) return;  // although this should not happen
     this->_search_path.clear();
     unsigned offset = this->header->root;
@@ -297,7 +428,7 @@ void IntIndex::remove(int key, unsigned int record_offset) {
     while (!(node->size & (1 << 31))) {  // find leaf node to remove
         this->_search_path.push_back(offset);
         bool found = false;
-        for (int i = 0; i < node->size; i++) {
+        for (unsigned i = 0; i < node->size; i++) {
             if (key < node->keys[i]) {
                 left_sibling = i - 1;
                 right_sibling = i + 1;
@@ -317,7 +448,7 @@ void IntIndex::remove(int key, unsigned int record_offset) {
         }
     }
     bool found = false;
-    int pos;
+    unsigned pos;
     for (pos = 0; pos < (node->size & ~(1 << 31)); pos++) {
         if (node->keys[pos] == key) {
             found = true;
@@ -325,91 +456,153 @@ void IntIndex::remove(int key, unsigned int record_offset) {
         }
     }
     if (!found) return;
-    // search for the certain record offset
-
-    for (int i = pos; i < cursor->size; i++) {
-        cursor->key[i] = cursor->key[i + 1];
-    }
-    cursor->size--;
-    if (cursor == root) {
-        for (auto &i: cursor->ptr) {
-            i = nullptr;
-        }
-        if (cursor->size == 0) {
-            std::cout << "Tree died\n";
-            delete[] cursor->key;
-            delete[] cursor->ptr;
-            delete cursor;
-            root = nullptr;
-        }
-        return;
-    }
-    cursor->ptr[cursor->size] = cursor->ptr[cursor->size + 1];
-    cursor->ptr[cursor->size + 1] = nullptr;
-    if (cursor->size >= (BTREE_ORDER + 1) / 2) {
-        return;
-    }
-    if (leftSibling >= 0) {
-        Node *leftNode = parent->ptr[leftSibling];
-        if (leftNode->size >= (BTREE_ORDER + 1) / 2 + 1) {
-            for (int i = cursor->size; i > 0; i--) {
-                cursor->key[i] = cursor->key[i - 1];
+    if (node->children[pos] & 1) {  // links to overflow node
+        auto overflow_node = (IntIndexOverflowNode *)this->_readNode(node->children[pos] & ~1);
+        unsigned overflow_offset = node->children[pos] & ~1;
+        unsigned hit_offset;
+        unsigned hit_pos = 2 * BTREE_ORDER + 1;
+        unsigned hit_replace;
+        unsigned last_offset = 0;
+        while (overflow_node->size == 2 * BTREE_ORDER && overflow_node->children[2 * BTREE_ORDER] != 0) {
+            if (hit_pos != 2 * BTREE_ORDER + 1) continue;
+            for (unsigned i = 0; i < overflow_node->size; ++i) {
+                if (overflow_node->children[i] == record_offset) {
+                    hit_offset = overflow_offset;
+                    hit_pos = i;
+                    break;
+                }
             }
-            cursor->size++;
-            cursor->ptr[cursor->size] = cursor->ptr[cursor->size - 1];
-            cursor->ptr[cursor->size - 1] = nullptr;
-            cursor->key[0] = leftNode->key[leftNode->size - 1];
-            leftNode->size--;
-            leftNode->ptr[leftNode->size] = cursor;
-            leftNode->ptr[leftNode->size + 1] = nullptr;
-            parent->key[leftSibling] = cursor->key[0];
+            last_offset = overflow_offset;
+            overflow_offset = overflow_node->children[2 * BTREE_ORDER];
+            delete overflow_node;
+            overflow_node = (IntIndexOverflowNode *)this->_readNode(overflow_offset);
+        }
+        // now we are at the last overflow node
+        if (hit_pos == 2 * BTREE_ORDER + 1) {
+            for (unsigned i = 0; i < overflow_node->size; ++i) {
+                if (overflow_node->children[i] == record_offset) {
+                    hit_offset = overflow_offset;
+                    hit_pos = i;
+                    break;
+                }
+            }
+        }
+        hit_replace = overflow_node->children[overflow_node->size - 1];
+        // remove last node
+        if (overflow_node->size == 1) {
+            if (last_offset == 0) {  // only one overflow node, need to delete real leaf node
+                // TODO
+            } else {
+                overflow_node = (IntIndexOverflowNode *)this->_readNode(last_offset);
+                overflow_node->children[2 * BTREE_ORDER] = 0;
+                this->_writeNode((IntIndexNode *)overflow_node, last_offset);
+                delete overflow_node;
+            }
+        } else {
+            --overflow_node->size;
+            this->_writeNode((IntIndexNode *)overflow_node, overflow_offset);
+            delete overflow_node;
+        }
+        // set hit pos to last record
+        overflow_node = (IntIndexOverflowNode *)this->_readNode(hit_offset);
+        overflow_node->children[hit_pos] = hit_replace;
+        this->_writeNode((IntIndexNode *)overflow_node, hit_offset);
+        delete overflow_node;
+    } else {  // links to record
+        if (node->children[pos] != record_offset) return;  // although this should not happen either
+        for (unsigned i = pos; i < (node->size & ~(1 << 31)) - 1; i++) {  // remove from leaf
+            node->keys[i] = node->keys[i + 1];
+            node->children[i] = node->children[i + 1];
+        }
+        node->children[(node->size & ~(1 << 31)) - 1] = node->children[node->size & ~(1 << 31)];
+        --node->size;
+        if (offset == this->header->root) {
+            if (node->size == 0) {
+                this->_deleteNode(offset);
+                this->header->root = 0;
+            } else {
+                this->_writeNode(node, offset);
+            }
+            delete node;
             return;
         }
-    }
-    if (rightSibling <= parent->size) {
-        Node *rightNode = parent->ptr[rightSibling];
-        if (rightNode->size >= (BTREE_ORDER + 1) / 2 + 1) {
-            cursor->size++;
-            cursor->ptr[cursor->size] = cursor->ptr[cursor->size - 1];
-            cursor->ptr[cursor->size - 1] = nullptr;
-            cursor->key[cursor->size - 1] = rightNode->key[0];
-            rightNode->size--;
-            rightNode->ptr[rightNode->size] = rightNode->ptr[rightNode->size + 1];
-            rightNode->ptr[rightNode->size + 1] = nullptr;
-            for (int i = 0; i < rightNode->size; i++) {
-                rightNode->key[i] = rightNode->key[i + 1];
+        if (node->size >= (BTREE_ORDER + 1) / 2) return;  // no need to merge
+        auto parent = this->_readNode(this->_search_path.back());
+        if (left_sibling != -1u) {
+            auto left_node = this->_readNode(parent->children[left_sibling]);
+            if ((left_node->size & ~(1 << 31)) >= (BTREE_ORDER + 1) / 2 + 1) {  // rotate: borrow from left sibling
+                node->children[(node->size & ~(1 << 31)) + 1] = node->children[node->size & ~(1 << 31)];
+                for (unsigned i = (node->size & ~(1 << 31)); i > 0; --i) {
+                    node->keys[i] = node->keys[i - 1];
+                    node->children[i] = node->children[i - 1];
+                }
+                ++node->size;
+                node->keys[0] = left_node->keys[(left_node->size & ~(1 << 31)) - 1];
+                left_node->children[(left_node->size & ~(1 << 31)) - 1] = left_node->children[left_node->size & ~(1 << 31)];
+                --left_node->size;
+                parent->keys[left_sibling] = node->keys[0];
+                this->_writeNode(node, offset);
+                this->_writeNode(left_node, parent->children[left_sibling]);
+                this->_writeNode(parent, this->_search_path.back());
+                delete node;
+                delete left_node;
+                delete parent;
+                return;
             }
-            parent->key[rightSibling - 1] = rightNode->key[0];
-            return;
+        }
+        if (right_sibling <= parent->size) {
+            auto right_node = this->_readNode(parent->children[right_sibling]);
+            if ((right_node->size & ~(1 << 31)) >= (BTREE_ORDER + 1) / 2 + 1) {  // rotate: borrow from right sibling
+                node->children[(node->size & ~(1 << 31)) + 1] = node->children[node->size & ~(1 << 31)];
+                node->children[node->size & ~(1 << 31)] = right_node->children[0];
+                node->keys[(node->size & ~(1 << 31))] = right_node->keys[0];
+                ++node->size;
+                --right_node->size;
+                for (unsigned i = 0; i < (right_node->size & ~(1 << 31)); i++) {
+                    right_node->keys[i] = right_node->keys[i + 1];
+                    right_node->children[i] = right_node->children[i + 1];
+                }
+                right_node->children[right_node->size & ~(1 << 31)] = right_node->children[(right_node->size & ~(1 << 31)) + 1];
+                parent->keys[right_sibling - 1] = right_node->keys[0];
+                this->_writeNode(node, offset);
+                this->_writeNode(right_node, parent->children[right_sibling]);
+                this->_writeNode(parent, this->_search_path.back());
+                delete node;
+                delete right_node;
+                delete parent;
+                return;
+            }
+        }
+        if (left_sibling != -1u) {  // merge with left sibling
+            auto left_node = this->_readNode(parent->children[left_sibling]);
+            for (unsigned i = (left_node->size & ~(1 << 31)), j = 0; j < (node->size & ~(1 << 31)); ++i, ++j) {
+                left_node->keys[i] = node->keys[j];
+                left_node->children[i] = node->children[j];
+            }
+            left_node->size += (node->size & ~(1 << 31));
+            left_node->children[left_node->size & ~(1 << 31)] = node->children[node->size & ~(1 << 31)];
+            this->_removeInternal(parent->keys[left_sibling], offset);
+            this->_writeNode(left_node, parent->children[left_sibling]);
+            this->_deleteNode(offset);
+            delete node;
+            delete left_node;
+            delete parent;
+        } else /* if (right_sibling <= parent->size) */ {  // merge with right sibling
+            auto right_node = this->_readNode(parent->children[right_sibling]);
+            for (unsigned i = (node->size & ~(1 << 31)), j = 0; j < (right_node->size & ~(1 << 31)); ++i, ++j) {
+                node->keys[i] = right_node->keys[j];
+                node->children[i] = right_node->children[j];
+            }
+            node->size += (right_node->size & ~(1 << 31));
+            node->children[node->size & ~(1 << 31)] = right_node->children[right_node->size & ~(1 << 31)];
+            this->_removeInternal(parent->keys[right_sibling - 1], parent->children[right_sibling]);
+            this->_writeNode(node, offset);
+            this->_deleteNode(parent->children[right_sibling]);
+            delete node;
+            delete right_node;
+            delete parent;
         }
     }
-    if (leftSibling >= 0) {
-        Node *leftNode = parent->ptr[leftSibling];
-        for (int i = leftNode->size, j = 0; j < cursor->size; i++, j++) {
-            leftNode->key[i] = cursor->key[j];
-        }
-        leftNode->ptr[leftNode->size] = nullptr;
-        leftNode->size += cursor->size;
-        leftNode->ptr[leftNode->size] = cursor->ptr[cursor->size];
-        removeInternal(parent->key[leftSibling], parent, cursor);
-        delete[] cursor->key;
-        delete[] cursor->ptr;
-        delete cursor;
-    } else if (rightSibling <= parent->size) {
-        Node *rightNode = parent->ptr[rightSibling];
-        for (int i = cursor->size, j = 0; j < rightNode->size; i++, j++) {
-            cursor->key[i] = rightNode->key[j];
-        }
-        cursor->ptr[cursor->size] = nullptr;
-        cursor->size += rightNode->size;
-        cursor->ptr[cursor->size] = rightNode->ptr[rightNode->size];
-        std::cout << "Merging two leaf nodes\n";
-        removeInternal(parent->key[rightSibling - 1], parent, rightNode);
-        delete[] rightNode->key;
-        delete[] rightNode->ptr;
-        delete rightNode;
-    }
-*/
 }
 
 unsigned IntIndex::search(int key) {

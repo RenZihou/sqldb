@@ -18,8 +18,9 @@ private:
 
 protected:
     KT *keys;
-    unsigned *hkeys;
+//    unsigned *hkeys;
     int *values;
+    unsigned *removed;
     int hot = 0;  // last used index
 
 public:
@@ -27,31 +28,43 @@ public:
      * @param key key
      * @return value if key exists, -1 otherwise
      */
-    int get(const KT &key) {
+    virtual int get(const KT &key) {
         unsigned h = this->_hash(key);
-        for (hot = 0; hot < this->capacity; ++hot) {
-            if (this->hkeys[hot] == h && this->keys[hot] == key) return this->values[hot];
+        this->hot = h % this->capacity;
+        while ((this->values[this->hot] != -1 && this->keys[this->hot] != key)
+               || (this->values[this->hot] == -1 &&
+                   (this->removed[this->hot >> 5] & (1 << (this->hot & 31))))) {  // linear probe
+            ++this->hot;
+            this->hot %= this->capacity;
         }
-        return -1;
+        return this->values[this->hot];
+//        for (hot = h % (2 * this->capacity); hot < this->capacity; ++hot) {
+//            if (this->hkeys[hot] == h && this->keys[hot] == key) return this->values[hot];
+//        }
+//        return -1;
     }
 
     /**
+     * @brief remove by key
      * @param key key
      * @return value of the key
-     * @description remove by key
      */
     virtual int remove(const KT &key) {
-        unsigned h = this->_hash(key);
-        int value;
-        for (hot = 0; hot < this->capacity; ++hot) {
-            if (this->hkeys[hot] == h && this->keys[hot] == key) {
-                this->hkeys[hot] = 0;
-                value = this->values[hot];
-                this->values[hot] = -1;
-                return value;
-            }
-        }
-        return -1;
+        this->get(key);
+        if (this->values[this->hot] == -1) return -1;
+        this->removed[this->hot >> 5] |= 1 << (this->hot & 31);
+        return this->values[this->hot];
+//        unsigned h = this->_hash(key);
+//        int value;
+//        for (hot = 0; hot < this->capacity; ++hot) {
+//            if (this->hkeys[hot] == h && this->keys[hot] == key) {
+//                this->hkeys[hot] = 0;
+//                value = this->values[hot];
+//                this->values[hot] = -1;
+//                return value;
+//            }
+//        }
+//        return -1;
     }
 
     /**
@@ -60,29 +73,44 @@ public:
      * @return 0 for success, -1 for error
      */
     virtual int push(const KT &key, int value) {
+        // TODO error when reach half capacity
         unsigned h = this->_hash(key);
-        for (hot = 0; hot < this->capacity; ++hot) {
-            if (this->values[hot] == -1) {
-                this->hkeys[hot] = h;
-                this->keys[hot] = key;
-                this->values[hot] = value;
-                return 0;
-            }
+        this->hot = h % this->capacity;
+        while (this->values[this->hot] != -1 && this->keys[this->hot] != key) {
+            ++this->hot;
+            this->hot %= this->capacity;
         }
-        return -1;
+        if (this->values[this->hot] != -1) return -1;
+        this->keys[this->hot] = key;
+//        this->hkeys[this->hot] = h;
+        this->values[this->hot] = value;
+        return 0;
+//        for (hot = 0; hot < this->capacity; ++hot) {
+//            if (this->values[hot] == -1) {
+//                this->hkeys[hot] = h;
+//                this->keys[hot] = key;
+//                this->values[hot] = value;
+//                return 0;
+//            }
+//        }
+//        return -1;
     }
 
-    explicit HashMap(int c) : capacity(c), keys(new KT[c]), hkeys(new unsigned[c]),
-                              values(new int[c]) {
-        for (int i = 0; i < c; ++i) {
+    explicit HashMap(int c) : capacity(2 * c), keys(new KT[2 * c]), // hkeys(new unsigned[c]),
+                              values(new int[2 * c]), removed(new unsigned[(c >> 4) + 1]) {
+        for (int i = 0; i < 2 * c; ++i) {
             this->values[i] = -1;
+        }
+        for (int i = 0; i < (c >> 4) + 1; ++i) {
+            this->removed[i] = 0;
         }
     }
 
     virtual ~HashMap() {
         delete[] keys;
-        delete[] hkeys;
+//        delete[] hkeys;
         delete[] values;
+        delete[] removed;
     }
 };
 
@@ -109,6 +137,10 @@ struct Page {
     inline bool operator==(const Page &rhs) const {
         return filename == rhs.filename && pageID == rhs.pageID;
     }
+
+    inline bool operator!=(const Page &rhs) const {
+        return !(rhs == *this);
+    }
 };
 
 class PageHashMap : public HashMap<Page> {
@@ -132,8 +164,6 @@ public:
         delete[] reverse;
     }
 
-    // TODO override get (faster)
-
     /**
      * @param key key
      * @param value value
@@ -148,9 +178,9 @@ public:
     }
 
     /**
+     * @brief remove by key
      * @param key key
      * @return value of the key
-     * @description remove by key
      */
     int remove(const Page &key) override {
         int value = HashMap::remove(key);
@@ -161,29 +191,32 @@ public:
     }
 
     /**
+     * @brief remove by value, slightly faster than remove by key
      * @param value value
-     * @description remove by value, faster than remove by key
      */
     void remove(int value) {
         int index = this->reverse[value];
         if (index != -1) {
-            this->hkeys[index] = 0;
+//            this->hkeys[index] = 0;
             this->values[index] = -1;
             this->reverse[value] = -1;
+            this->removed[index >> 5] |= 1 << (index & 31);
         }
     }
 
     /**
+     * @brief update key by value
      * @param value value
      * @param key new key
-     * @description update key by value
      */
     void replace(int value, const Page &key) {
-        int index = this->reverse[value];
-        if (index != -1) {
-            this->hkeys[index] = this->_hash(key);
-            this->keys[index] = key;
-        }
+        this->remove(value);
+        this->push(key, value);
+//        int index = this->reverse[value];
+//        if (index != -1) {
+//            this->hkeys[index] = this->_hash(key);
+//            this->keys[index] = key;
+//        }
     }
 
     /**

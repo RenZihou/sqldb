@@ -448,9 +448,8 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
     delete secondary;
 }
 
-void
-checkIndexOnCondition(std::string table_name, std::vector<Condition *> &conditions, bool &use_index,
-                      std::string &index_column, int &begin, int &end) {
+void checkIndexOnCondition(std::string table_name, std::vector<Condition *> &conditions,
+                           bool &use_index, std::string &index_column, int &begin, int &end) {
     // check if index can be used
     auto table = new Table(std::move(table_name));
     use_index = false;

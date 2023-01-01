@@ -7,7 +7,6 @@
 #include "op.h"
 #include "op_util.h"
 #include "../system/database.h"
-#include "../index/int_index.h"
 
 void Op::execute(Printer *printer) {
     throw SqlDBException("not supported syntax");
@@ -50,17 +49,27 @@ void OpTableInsert::execute(Printer *printer) {
     Database::db().assertTableExists(this->name);
     auto table = new Table(this->name);
     for (auto &value: this->values) {
-        table->insertRecord(value);
+        table->insertRecord(value);  // table will update index
     }
     delete table;
 }
 
-void OpTableDelete::execute(Printer *printer) {
+void OpTableDelete::execute(Printer *printer) {  // TODO move index maintenance to table cursor
     Database::db().assertTableExists(this->name);
     auto table = new Table(this->name);
+    std::vector<std::tuple<int, IntIndex *>> indexes;
     int deleted_count = 0;
+    auto columns = table->getColumns();
+    for (int i = 0; i < static_cast<int>(columns.size()); ++i) {
+        if (table->hasIndex(i)) {
+            indexes.emplace_back(i, new IntIndex(this->name, columns[i]));
+        }
+    }
     conditionalIterRecord(table, this->conditions, [&](RecordCursor &cursor, bool satisfied) {
         if (satisfied) {
+            for (auto &[column, index]: indexes) {
+                index->remove(dynamic_cast<Int *>(cursor.get(column))->getValue(), cursor.getOffset());
+            }
             cursor.del();
             ++deleted_count;
         }
@@ -73,22 +82,33 @@ void OpTableUpdate::execute(Printer *printer) {
     Database::db().assertTableExists(this->name);
     auto table = new Table(this->name);
     std::vector<std::tuple<int, std::string>> update_columns;
+    std::vector<std::tuple<int, int, IntIndex *>> update_indexes;
     for (const auto &update: this->updates) {
         int column_index = table->getColumnIndex(std::get<0>(update));
         if (column_index == -1) {
             throw SqlDBException("column not found: " + std::get<0>(update));
         }
         update_columns.emplace_back(column_index, std::get<1>(update));
+        if (table->hasIndex(column_index)) {
+            update_indexes.emplace_back(column_index, std::stoi(std::get<1>(update)), new IntIndex(this->name, std::get<0>(update)));
+        }
     }
     int updated_count = 0;
     conditionalIterRecord(table, this->conditions, [&](RecordCursor &cursor, bool satisfied) {
         if (satisfied) {
+            for (auto &[column, new_value, index] : update_indexes) {
+                index->remove(dynamic_cast<Int *>(cursor.get(column))->getValue(), cursor.getOffset());
+                index->insert(new_value, cursor.getOffset());
+            }
             cursor.set(update_columns);
             ++updated_count;
         }
     });
     printer->printMessage("updated " + std::to_string(updated_count) + " records");
     delete table;
+    for (const auto &index : update_indexes) {
+        delete std::get<2>(index);
+    }
 }
 
 void OpTableSelect::execute(Printer *printer) {

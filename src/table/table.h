@@ -79,8 +79,9 @@ private:
     /**
      * @brief insert a record into table
      * @param data serialized data including null flag
+     * @return inserted record offset
      */
-    void _insertRecord(void *data);
+    unsigned _insertRecord(void *data);
 
     /**
      * @brief delete a record from table

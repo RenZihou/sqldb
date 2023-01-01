@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "table.h"
+#include "../index/int_index.h"
 #include "../pagefile/buffer_manager.h"
 #include "../util/exception.h"
 
@@ -68,10 +69,12 @@ inline void Table::_slot_to_offset(unsigned int &offset, unsigned int page, unsi
     offset = (page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE + slot * this->_getRecordSizeWithFlag();
 }
 
-void Table::_insertRecord(void *data) {
+unsigned Table::_insertRecord(void *data) {
     int index;  // index of buffer to write
     BufType buf;  // buffer to write
+    unsigned ret;
     if (this->header->next_empty == 0) {  // all pages are occupied
+        ret = (this->header->pages << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE;
         index = BufferManager::bm().allocPage(this->name, this->header->pages);
         buf = BufferManager::bm().readBuffer(index);
         for (int i = 0; i < PAGE_HEADER_SIZE; ++i) {
@@ -98,6 +101,7 @@ void Table::_insertRecord(void *data) {
         ++this->header->pages;
         buf += PAGE_HEADER_SIZE;
     } else {
+        ret = this->header->next_empty;
         unsigned page, slot;
         this->_offset_to_slot(this->header->next_empty, page, slot);
         index = BufferManager::bm().getPage(this->name, page);
@@ -109,6 +113,7 @@ void Table::_insertRecord(void *data) {
     memcpy(buf, data, this->_getRecordSizeWithFlag());
     BufferManager::bm().markDirty(index);
     ++this->header->rows;
+    return ret;
 }
 
 void Table::_deleteRecord(unsigned page, unsigned slot) {
@@ -242,7 +247,13 @@ void Table::insertRecord(const std::vector<std::string> &values) {
                             this->header->column_info[i].length);
         *(unsigned *) data = 0;  // TODO null flags
     }
-    this->_insertRecord(data);
+    unsigned offset = this->_insertRecord(data);
+    for (unsigned i = 0; i < this->header->columns; ++i) {
+        if (this->header->column_info[i].flags & FLAG_HAS_INDEX) {
+            IntIndex index(this->name, this->header->column_info[i].name);
+            index.insert(std::stoi(values[i]), offset);
+        }
+    }
     delete[] data;
 }
 

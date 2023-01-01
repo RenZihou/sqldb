@@ -45,6 +45,8 @@ private:
 
     IntIndexNode *_readNode(unsigned offset);
 
+    void _deleteNode(unsigned offset);
+
     void _writeNode(IntIndexNode *node, unsigned offset);
 
     /**
@@ -53,6 +55,13 @@ private:
      * @param new_child_offset
      */
     void _insertInternal(int key, unsigned new_child_offset);
+
+    /**
+     * @brief remove
+     * @param key
+     * @param child_offset
+     */
+    void _removeInternal(int key, unsigned child_offset);
 
 public:
     IntIndex(std::string table, std::string column);
