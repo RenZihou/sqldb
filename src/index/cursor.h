@@ -23,7 +23,8 @@ public:
 
     bool find(int key) {
         unsigned offset;
-        unsigned record_offset = this->index->search(key, this->pos, offset);
+        bool match;
+        unsigned record_offset = this->index->search(key, this->pos, offset, match);
         int i = BufferManager::bm().getPage(this->index->table + "." + this->index->column,
                                             offset >> PAGE_SIZE_IDX);
         memcpy(&this->cached_index,

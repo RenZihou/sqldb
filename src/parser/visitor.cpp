@@ -135,11 +135,28 @@ std::any Visitor::visitAlterTableDropPk(SQLParser::AlterTableDropPkContext *ctx)
     return dynamic_cast<Op *>(op);
 }
 
+std::any Visitor::visitAlterTableDropForeignKey(SQLParser::AlterTableDropForeignKeyContext *ctx) {
+    std::string name = ctx->Identifier(0)->getText();
+    std::string fk = ctx->Identifier(1)->getText();
+    auto *op = new OpTableAlterDropFk(name, fk);
+    return dynamic_cast<Op *>(op);
+}
+
 std::any Visitor::visitAlterTableAddPk(SQLParser::AlterTableAddPkContext *ctx) {
     std::string name = ctx->Identifier(0)->getText();
     std::string pk = ctx->Identifier(1) ? ctx->Identifier(1)->getText() : "";
     auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
     auto *op = new OpTableAlterAddPk(name, pk, columns);
+    return dynamic_cast<Op *>(op);
+}
+
+std::any Visitor::visitAlterTableAddForeignKey(SQLParser::AlterTableAddForeignKeyContext *ctx) {
+    std::string name = ctx->Identifier(0)->getText();
+    std::string fk = ctx->Identifier().size() == 3 ? ctx->Identifier(1)->getText() : "";
+    std::string ref_table = ctx->Identifier().size() == 3 ? ctx->Identifier(2)->getText() : ctx->Identifier(1)->getText();
+    auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers(0)));
+    auto ref_columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers(1)));
+    auto *op = new OpTableAlterAddFk(name, fk, ref_table, columns, ref_columns);
     return dynamic_cast<Op *>(op);
 }
 
@@ -216,10 +233,11 @@ std::any Visitor::visitValue(SQLParser::ValueContext *ctx) {
     } else if (ctx->String() != nullptr) {
         std::string with_quote = ctx->String()->getText();
         return with_quote.substr(1, with_quote.length() - 2);
-    } else if (ctx->Null() != nullptr) {
+//    } else if (ctx->Null() != nullptr) {
+//        return "";
+    } else {
         return "";
     }
-    return "";
 }
 
 std::any Visitor::visitWhereAndClause(SQLParser::WhereAndClauseContext *ctx) {

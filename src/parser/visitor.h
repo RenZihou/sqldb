@@ -45,7 +45,11 @@ public:
 
     std::any visitAlterTableDropPk(SQLParser::AlterTableDropPkContext *ctx) override;
 
+    std::any visitAlterTableDropForeignKey(SQLParser::AlterTableDropForeignKeyContext *ctx) override;
+
     std::any visitAlterTableAddPk(SQLParser::AlterTableAddPkContext *ctx) override;
+
+    std::any visitAlterTableAddForeignKey(SQLParser::AlterTableAddForeignKeyContext *ctx) override;
 
     std::any visitFieldList(SQLParser::FieldListContext *ctx) override;
 

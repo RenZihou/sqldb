@@ -6,6 +6,7 @@
 
 #include "database.h"
 #include "../query/op.h"
+#include "../pagefile/buffer_manager.h"
 #include "../util/exception.h"
 
 void Database::boost() {

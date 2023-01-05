@@ -6,10 +6,6 @@
 
 #include "printer.h"
 
-//void Printer::setup(const std::vector<ColumnType> &types_) {
-//    this->types = types_;
-//}
-
 void Printer::printHeader(const std::vector<std::string> &header) {
     this->columns = header.size();
     this->printed_lines = 0;
@@ -55,6 +51,16 @@ void MemoryStringPrinter::printEnd() {}
 void MemoryStringPrinter::printMessage(const std::string &message) {}
 
 std::vector<std::string> MemoryStringPrinter::getLines() const { return this->lines; }
+
+void CounterPrinter::printHeader(const std::vector<std::string> &header) {}
+
+void CounterPrinter::printLine(const std::vector<Type *> &line) { ++this->printed_lines; }
+
+unsigned CounterPrinter::getCount() const { return this->printed_lines; }
+
+void CounterPrinter::printEnd() {}
+
+void CounterPrinter::printMessage(const std::string &message) {}
 
 void DummyPrinter::printHeader(const std::vector<std::string> &header) {}
 

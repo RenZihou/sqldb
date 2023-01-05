@@ -5,6 +5,11 @@
 #ifndef CONSTANTS_H_
 #define CONSTANTS_H_
 
+/* ==== common ==== */
+
+#define MIN_INT (-2147483648)
+#define MAX_INT 2147483647
+
 /* ==== hash map ==== */
 
 #define HASH_OFFSET 2166136261  // hash init value
@@ -28,15 +33,20 @@ typedef unsigned char *BufType;
 #define MAX_COLUMN_NAME_LEN 128  // max column name length in a table
 #define MAX_KEY_LEN MAX_COLUMN_NAME_LEN  // max primary / foreign key length
 #define MAX_RECORD_SIZE 4080  // max record size in a table, must <= PAGE_SIZE - PAGE_HEADER_SIZE - sizeof(unsigned)
+#define MAX_FOREIGN_KEY 12  // max foreign keys in a table
+#define MAX_REFERENCED MAX_FOREIGN_KEY  // max referenced numbers in a table
 
 #define FLAG_NOT_NULL 1  // bit mask of not null flag
 #define FLAG_HAS_DEFAULT 2  // bit mask of has default flag
 #define FLAG_HAS_INDEX 4  // bit mask of has index flag
 #define FLAG_IS_PRIMARY 8  // bit mask of is primary flag (do not support composite primary key)
+#define FLAG_IS_FOREIGN 16  // bit mask of is foreign flag (do not support composite foreign key)
+#define FLAG_IS_UNIQUE 32  // bit mask of is unique flag
 
 /* ==== index ==== */
 
 #define BTREE_ORDER 7  // order of B+ tree, now there will be exactly 2 index node on each page
+// TODO
 
 /* === DATABASE ==== */
 

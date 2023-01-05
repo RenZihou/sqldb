@@ -620,10 +620,11 @@ void IntIndex::remove(int key, unsigned int record_offset) {
 
 unsigned IntIndex::search(int key) {
     unsigned pos, offset;
-    return this->search(key, pos, offset);
+    bool match;
+    return this->search(key, pos, offset, match);
 }
 
-unsigned IntIndex::search(int key, unsigned &pos, unsigned &offset) {
+unsigned IntIndex::search(int key, unsigned &pos, unsigned &offset, bool &match) {
     if (this->header->root == 0) {
         return 0;
     }
@@ -646,10 +647,14 @@ unsigned IntIndex::search(int key, unsigned &pos, unsigned &offset) {
             node = this->_readNode(offset);
         }
     }
+    unsigned ret = 0;
     for (pos = 0; pos < (node->size & ~(1 << 31)); pos++) {
         if (node->keys[pos] >= key) {
-            return node->children[pos];
+            ret = node->children[pos];
+            match = node->keys[pos] == key;
+            delete node;
+            break;
         }
     }
-    return 0;
+    return ret;
 }

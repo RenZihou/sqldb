@@ -32,6 +32,8 @@ enum class OpType {
     TABLE_ALTER_DROP_INDEX,
     TABLE_ALTER_ADD_PK,
     TABLE_ALTER_DROP_PK,
+    TABLE_ALTER_ADD_FK,
+    TABLE_ALTER_DROP_FK,
     UNKNOWN
 };
 
@@ -113,8 +115,10 @@ private:
     std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys;
 
 public:
-    OpTableCreate(std::string name, std::vector<Column> columns, std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys)
-            : Op(), name(std::move(name)), columns(std::move(columns)), primary_keys(std::move(primary_keys)) {}
+    OpTableCreate(std::string name, std::vector<Column> columns,
+                  std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys)
+            : Op(), name(std::move(name)), columns(std::move(columns)),
+              primary_keys(std::move(primary_keys)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_CREATE; }
 
@@ -280,6 +284,40 @@ public:
             : Op(), name(std::move(name)), pk(std::move(pk)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_DROP_PK; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableAlterAddFk : public Op {
+private:
+    std::string name;
+    std::string fk;
+    std::string ref_table_name;
+    std::vector<std::string> columns;
+    std::vector<std::string> ref_columns;
+
+public:
+    OpTableAlterAddFk(std::string name, std::string fk, std::string ref_table_name,
+                      std::vector<std::string> columns, std::vector<std::string> ref_columns)
+            : Op(), name(std::move(name)), fk(std::move(fk)),
+              ref_table_name(std::move(ref_table_name)), columns(std::move(columns)),
+              ref_columns(std::move(ref_columns)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_ADD_FK; }
+
+    void execute(Printer *printer) override;
+};
+
+class OpTableAlterDropFk : public Op {
+private:
+    std::string name;
+    std::string fk;
+
+public:
+    OpTableAlterDropFk(std::string name, std::string fk)
+            : Op(), name(std::move(name)), fk(std::move(fk)) {}
+
+    [[nodiscard]] OpType getType() const override { return OpType::TABLE_ALTER_DROP_FK; }
 
     void execute(Printer *printer) override;
 };

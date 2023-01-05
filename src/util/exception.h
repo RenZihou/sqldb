@@ -15,6 +15,8 @@ private:
 public:
     explicit SqlDBException(std::string message) : message(std::move(message)) {}
 
+    SqlDBException(const SqlDBException &other) : message(other.message) {}
+
     [[nodiscard]] const char *what() const noexcept override { return this->message.c_str(); }
 };
 

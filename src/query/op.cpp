@@ -48,10 +48,21 @@ void OpTableCreate::execute(Printer *printer) {
 }
 
 void OpTableDrop::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    auto table = new Table(this->name);
+    if (!table->getReferences().empty()) {
+        throw SqlDBException("table referenced by foreign key");
+    }
+    auto fks = table->getForeignKeys();
+    delete table;
+    for (const auto &fk: fks) {
+        OpTableAlterDropFk(this->name, fk.name).execute(printer);
+    }
     Database::db().dropTable(this->name);
 }
 
 void OpTableDescribe::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
     auto table = new Table(this->name);
     // columns
     printer->printHeader({"field", "type", "null", "default"});
@@ -91,7 +102,18 @@ void OpTableDescribe::execute(Printer *printer) {
     if (table->getPrimaryKey(pk_column, pk_key)) {
         printer->printMessage("PRIMARY KEY " + pk_key + "(" + columns[pk_column] + ")");
     }
-    // TODO foreign key
+    // foreign key
+    auto fks = table->getForeignKeys();
+    Table *ref_table;
+    int ref_table_pk_column;
+    std::string ref_table_pk_key;
+    for (const auto &[key, column, ref]: fks) {
+        ref_table = new Table(ref);
+        ref_table->getPrimaryKey(ref_table_pk_column, ref_table_pk_key);
+        printer->printMessage("FOREIGN KEY " + key + "(" + columns[column] + ") REFERENCES " +
+                              ref + "(" + ref_table->getColumns()[ref_table_pk_column] + ")");
+        delete ref_table;
+    }
     // TODO unique
     // index
     for (int i = 0; i < static_cast<int>(columns.size()); ++i) {
@@ -106,7 +128,7 @@ void OpTableInsert::execute(Printer *printer) {
     Database::db().assertTableExists(this->name);
     auto table = new Table(this->name);
     for (auto &value: this->values) {
-        table->insertRecord(value);  // table will update index
+        table->insertRecord(value);  // table will check integrity update index
     }
     delete table;
 }
@@ -153,14 +175,17 @@ void OpTableUpdate::execute(Printer *printer) {
         }
     }
     int updated_count = 0;
+    // TODO check unique
     conditionalIterRecord(table, this->conditions, [&](RecordCursor &cursor, bool satisfied) {
         if (satisfied) {
             for (auto &[column, new_value, index]: update_indexes) {
                 index->remove(dynamic_cast<Int *>(cursor.get(column))->getValue(),
                               cursor.getOffset());
-                index->insert(new_value, cursor.getOffset());
             }
             cursor.set(update_columns);
+            for (auto &[column, new_value, index]: update_indexes) {
+                index->insert(new_value, cursor.getOffset());
+            }
             ++updated_count;
         }
     });
@@ -178,11 +203,10 @@ void OpTableSelect::execute(Printer *printer) {
     switch (this->tables.size()) {
         case 1:
             Database::db().assertTableExists(this->tables[0]);
-            checkIndexOnCondition(this->tables[0], this->conditions, use_index, index_column, begin,
-                                  end);
+            checkIndexOnCondition(this->tables[0], this->conditions,
+                                  use_index, index_column, begin, end);
             conditionalSelect(this->tables[0], this->selectors, this->conditions,
-                              use_index, index_column, begin, end,
-                              printer);
+                              use_index, index_column, begin, end, printer);
             break;
         case 2:
             Database::db().assertTableExists(this->tables[0]);
@@ -261,14 +285,34 @@ void OpTableAlterAddPk::execute(Printer *printer) {
     if (table->getColumnType(pk_column) != ColumnType::INT) {
         throw SqlDBException("primary key must be INT type");
     }
-    table->addPrimaryKey(pk_column, this->pk);
+    bool has_index = table->hasIndex(pk_column);
     delete table;
     // add index
-    try {
+    if (!has_index) {
         OpTableAlterAddIndex(this->name, this->columns).execute(printer);
-    } catch (SqlDBException &e) {
-        // already has index, ignore error
     }
+    // check primary key unique (no null support for now)
+    auto index = new IntIndex(this->name, this->columns[0]);
+    auto index_cursor = new IntIndexCursor(index);
+    int key, prev_key;
+    unsigned offset;
+    index_cursor->find(MIN_INT);
+    if (index_cursor->next(key, offset)) {
+        prev_key = key;
+        while (index_cursor->next(key, offset)) {
+            if (key == prev_key) {
+                // rollback
+                OpTableAlterDropIndex(this->name, this->columns).execute(printer);
+                throw SqlDBException("primary key not unique");
+            }
+            prev_key = key;
+        }
+    }
+    delete index_cursor;
+    delete index;
+    table = new Table(this->name);
+    table->addPrimaryKey(pk_column, this->pk);
+    delete table;
 }
 
 void OpTableAlterDropPk::execute(Printer *printer) {
@@ -282,8 +326,73 @@ void OpTableAlterDropPk::execute(Printer *printer) {
     if (!this->pk.empty() && this->pk != pk_key) {
         throw SqlDBException("primary key not match");
     }
+    if (!table->getReferences().empty()) {
+        throw SqlDBException("column referenced by foreign key");
+    }
     table->dropPrimaryKey();
     auto column = table->getColumns()[pk_column];
     delete table;
     OpTableAlterDropIndex(this->name, {column}).execute(printer);
+}
+
+void OpTableAlterAddFk::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    Database::db().assertTableExists(this->ref_table_name);
+    if (this->columns.size() != 1 || this->ref_columns.size() != 1) {
+        throw SqlDBException("multiple foreign keys are not supported");
+    }
+    if (this->name == this->ref_table_name) {
+        throw SqlDBException("cannot add foreign key to self");  // TODO really?
+    }
+    auto table = new Table(this->name);
+    auto ref_table = new Table(this->ref_table_name);
+    int column_index = table->getColumnIndex(this->columns[0]);
+    if (column_index == -1) {
+        throw SqlDBException("column not found: " + this->columns[0]);
+    }
+    if (table->getColumnType(column_index) != ColumnType::INT) {
+        throw SqlDBException("foreign key must be INT type");
+    }
+    int ref_column_index = ref_table->getColumnIndex(this->ref_columns[0]);
+    if (ref_column_index == -1) {
+        throw SqlDBException("column not found: " + this->ref_columns[0]);
+    }
+    if (!ref_table->isPrimaryKey(ref_column_index)) {
+        throw SqlDBException("foreign key must reference primary key");
+    }
+    // check foreign key valid
+    auto index = new IntIndex(this->ref_table_name, this->ref_columns[0]);
+    unsigned index_pos, index_offset;
+    bool match;
+    conditionalIterRecord(table, {}, [&](RecordCursor &cursor, bool satisfied) {
+        int value = dynamic_cast<Int *>(cursor.get(column_index))->getValue();
+        if (!(index->search(value, index_pos, index_offset, match) && match)) {
+            throw SqlDBException("target column does not have value: " + std::to_string(value));
+        }
+    });
+    std::string fk_ = this->fk.empty() ? this->columns[0] : this->fk;
+    table->addForeignKey(column_index, fk_, this->ref_table_name);
+    try {
+        ref_table->addReferenced(this->name, column_index);
+    } catch (SqlDBException &e) {  // rollback when add failed
+        table->dropForeignKey(fk_);
+        throw SqlDBException(e);
+    }
+    delete table;
+    delete ref_table;
+}
+
+void OpTableAlterDropFk::execute(Printer *printer) {
+    Database::db().assertTableExists(this->name);
+    auto table = new Table(this->name);
+    int column_index;
+    std::string ref_table_name;
+    if (!table->getForeignKey(this->fk, column_index, ref_table_name)) {
+        throw SqlDBException("foreign key not exists");
+    }
+    table->dropForeignKey(this->fk);
+    auto ref_table = new Table(ref_table_name);
+    ref_table->dropReferenced(this->name, column_index);
+    delete table;
+    delete ref_table;
 }

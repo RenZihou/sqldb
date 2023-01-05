@@ -474,20 +474,20 @@ void checkIndexOnCondition(std::string table_name, std::vector<Condition *> &con
                             end = begin + 1;
                             break;
                         case CompareType::LT:
-                            begin = -2147483648;
+                            begin = MIN_INT;
                             end = std::stoi(rhs->value_s);
                             break;
                         case CompareType::LE:
-                            begin = -2147483648;
+                            begin = MIN_INT;
                             end = std::stoi(rhs->value_s) + 1;
                             break;
                         case CompareType::GT:
                             begin = std::stoi(rhs->value_s) + 1;
-                            end = 2147483647;
+                            end = MAX_INT;
                             break;
                         case CompareType::GE:
                             begin = std::stoi(rhs->value_s);
-                            end = 2147483647;
+                            end = MAX_INT;
                             break;
                         default:
                             use_index = false;

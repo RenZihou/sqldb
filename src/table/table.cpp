@@ -65,7 +65,8 @@ inline void Table::_offset_to_slot(unsigned int offset, unsigned int &page,
     slot = ((offset & PAGE_SIZE_MASK) - PAGE_HEADER_SIZE) / this->_getRecordSizeWithFlag();
 }
 
-inline void Table::_slot_to_offset(unsigned int &offset, unsigned int page, unsigned int slot) const {
+inline void
+Table::_slot_to_offset(unsigned int &offset, unsigned int page, unsigned int slot) const {
     offset = (page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE + slot * this->_getRecordSizeWithFlag();
 }
 
@@ -197,6 +198,8 @@ Table *Table::createTable(const std::string &name) {
     table->header->columns = 0;
     table->header->rows = 0;
     table->header->next_empty = 0;
+    table->header->foreign_keys = 0;
+    table->header->references = 0;
     return table;
 }
 
@@ -234,7 +237,7 @@ void Table::addColumn(const Column &column, const std::string &after) {
     this->header->column_info[index].length = column.length;
     this->header->column_info[index].offset =
             index == 0 ? sizeof(unsigned) : this->header->column_info[index - 1].offset
-                             + this->header->column_info[index - 1].length;
+                                            + this->header->column_info[index - 1].length;
     ++this->header->columns;
     // move defaults to the right
     unsigned offset_begin = this->header->column_info[index].offset;
@@ -248,14 +251,40 @@ void Table::addColumn(const Column &column, const std::string &after) {
                             column.length);
     }
     // TODO modify data (this function should only be called when creating table for now)
+    // TODO modify fk / ref info
 }
 
 void Table::insertRecord(const std::vector<std::string> &values) {
     if (values.size() != this->header->columns) {
         throw SqlDBException("column number mismatch");
     }
+    unsigned index_pos, index_offset;
+    bool index_match;
+    // check for primary key unique
+    for (unsigned i = 0; i < this->header->columns; ++i) {
+        if (this->header->column_info[i].flags & FLAG_IS_PRIMARY) {
+            IntIndex index(this->name, this->header->column_info[i].name);
+            if (index.search(std::stoi(values[i]),
+                             index_pos, index_offset, index_match) && index_match) {
+                throw SqlDBException("primary key constraint violated: duplicate value");
+            }
+        }
+    }
+    // check for foreign key
+    for (unsigned i = 0; i < this->header->foreign_keys; ++i) {
+        Table ref_table(this->header->foreign_key_info[i].ref_table);
+        int ref_column;
+        std::string ref_pk;
+        ref_table.getPrimaryKey(ref_column, ref_pk);
+        IntIndex index_(this->header->foreign_key_info[i].ref_table,
+                        ref_table.header->column_info[ref_column].name);
+        if (!(index_.search(std::stoi(values[this->header->foreign_key_info[i].column]),
+                            index_pos, index_offset, index_match) && index_match)) {
+            throw SqlDBException("foreign key constraint violated: no target found");
+        }
+    }
     auto data = new unsigned char[this->_getRecordSizeWithFlag()];
-    for (int i = 0; i < static_cast<int>(this->header->columns); ++i) {
+    for (unsigned i = 0; i < this->header->columns; ++i) {
         serializeFromString(values[i], this->header->column_info[i].type,
                             data + this->header->column_info[i].offset,
                             this->header->column_info[i].length);
@@ -311,4 +340,100 @@ void Table::dropPrimaryKey() {
         this->header->column_info[i].flags &= ~FLAG_IS_PRIMARY;
     }
     this->header->primary_key[0] = '\0';
+}
+
+void Table::addForeignKey(int column, const std::string &key, const std::string &ref_table) {
+    if (key.length() >= MAX_KEY_LEN - 1) {
+        throw SqlDBException("key too long");
+    }
+    if (this->header->foreign_keys >= MAX_FOREIGN_KEY) {
+        throw SqlDBException("reached max foreign key number");
+    }
+    for (unsigned i = 0; i < this->header->foreign_keys; ++i) {
+        if (this->header->foreign_key_info[i].name == key) {
+            throw SqlDBException("foreign key with same name already exists");
+        }
+    }
+    this->header->column_info[column].flags |= FLAG_IS_FOREIGN;
+    this->header->foreign_key_info[this->header->foreign_keys].column = column;
+    memcpy(this->header->foreign_key_info[this->header->foreign_keys].name, key.c_str(),
+           key.length() + 1);
+    memcpy(this->header->foreign_key_info[this->header->foreign_keys].ref_table, ref_table.c_str(),
+           ref_table.length() + 1);
+    ++this->header->foreign_keys;
+}
+
+bool Table::getForeignKey(const std::string &key, int &column, std::string &ref_table) {
+    for (unsigned i = 0; i < this->header->foreign_keys; ++i) {
+        if (this->header->foreign_key_info[i].name == key) {
+            column = this->header->foreign_key_info[i].column;
+            ref_table = this->header->foreign_key_info[i].ref_table;
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<ForeignKey> Table::getForeignKeys() {
+    std::vector<ForeignKey> fks;
+    for (unsigned i = 0; i < this->header->foreign_keys; ++i) {
+        fks.push_back(ForeignKey{this->header->foreign_key_info[i].name,
+                                 this->header->foreign_key_info[i].column,
+                                 this->header->foreign_key_info[i].ref_table});
+    }
+    return fks;
+}
+
+void Table::dropForeignKey(const std::string &key) {
+    int column = -1;
+    for (unsigned i = 0; i < this->header->foreign_keys; ++i) {
+        if (this->header->foreign_key_info[i].name == key) {
+            column = this->header->foreign_key_info[i].column;
+            this->header->column_info[this->header->foreign_key_info[i].column].flags &=
+                    ~FLAG_IS_FOREIGN;
+            for (unsigned j = i; j < this->header->foreign_keys - 1; ++j) {
+                this->header->foreign_key_info[j] = this->header->foreign_key_info[j + 1];
+            }
+            --this->header->foreign_keys;
+            break;
+        }
+    }
+    for (unsigned i = 0; i < this->header->foreign_keys; ++i) {
+        if (this->header->foreign_key_info[i].column == column) {
+            this->header->column_info[column].flags |= FLAG_IS_FOREIGN;
+            break;
+        }
+    }
+}
+
+void Table::addReferenced(const std::string &fk_table, int fk_column) {
+    if (this->header->references >= MAX_REFERENCED) {
+        throw SqlDBException("reached max reference number");
+    }
+    this->header->reference_info[this->header->references].fk_column = fk_column;
+    memcpy(this->header->reference_info[this->header->references].fk_table, fk_table.c_str(),
+           fk_table.length() + 1);
+    ++this->header->references;
+}
+
+std::vector<Reference> Table::getReferences() {
+    std::vector<Reference> refs;
+    for (unsigned i = 0; i < this->header->references; ++i) {
+        refs.push_back(Reference{this->header->reference_info[i].fk_table,
+                                 this->header->reference_info[i].fk_column});
+    }
+    return refs;
+}
+
+void Table::dropReferenced(const std::string &fk_table, int fk_column) {
+    for (unsigned i = 0; i < this->header->references; ++i) {
+        if (this->header->reference_info[i].fk_column == fk_column &&
+            this->header->reference_info[i].fk_table == fk_table) {
+            for (unsigned j = i; j < this->header->references - 1; ++j) {
+                this->header->reference_info[j] = this->header->reference_info[j + 1];
+            }
+            --this->header->references;
+            break;
+        }
+    }
 }

@@ -30,6 +30,28 @@ struct ColumnInfo {
     unsigned offset;
 };
 
+struct ForeignKey {
+    std::string name;
+    int column;
+    std::string ref_table;
+};
+
+struct ForeignKeyInfo {
+    char name[MAX_KEY_LEN];
+    int column;
+    char ref_table[MAX_TABLE_NAME_LEN];
+};
+
+struct Reference {
+    std::string fk_table;
+    int fk_column;
+};
+
+struct ReferenceInfo {
+    char fk_table[MAX_TABLE_NAME_LEN];
+    int fk_column;
+};
+
 struct TableHeader {
     unsigned columns;  // number of columns
     unsigned rows;  // number of rows
@@ -37,12 +59,16 @@ struct TableHeader {
     unsigned next_empty;  // next empty slot offset in bytes
     ColumnInfo column_info[MAX_COLUMN];
     unsigned char defaults[MAX_RECORD_SIZE + sizeof(unsigned)];
-    // TODO constraints
     char primary_key[MAX_KEY_LEN];
+    unsigned foreign_keys;
+    ForeignKeyInfo foreign_key_info[MAX_FOREIGN_KEY];
+    unsigned references;
+    ReferenceInfo reference_info[MAX_REFERENCED];
 };
 
 class Table {
     friend RecordCursor;
+
 private:
     TableHeader *header;
     const std::string name;
@@ -206,6 +232,43 @@ public:
      * @brief drop (the only) primary key
      */
     void dropPrimaryKey();
+
+    /**
+     * @brief add foreign key to table
+     * @param column foreign key column
+     * @param key foreign key name (should not be empty)
+     * @param ref_table which table ('s primary key) the foreign key references
+     */
+    void addForeignKey(int column, const std::string &key, const std::string &ref_table);
+
+    /**
+     * @return whether has foreign key with given name
+     */
+    bool getForeignKey(const std::string &key, int &column, std::string &ref_table);
+
+    std::vector<ForeignKey> getForeignKeys();
+
+    /**
+     * @brief drop foreign key with given name
+     * @param key foreign key name
+     */
+    void dropForeignKey(const std::string &key);
+
+    /**
+     * @brief add reference to primary key, allows multiple same references
+     * @param fk_table foreign key table
+     * @param fk_key foreign key column
+     */
+    void addReferenced(const std::string &fk_table, int fk_column);
+
+    std::vector<Reference> getReferences();
+
+    /**
+     * @brief drop reference to primary key, only drop one reference
+     * @param fk_table foreign key table
+     * @param fk_column foreign key column
+     */
+    void dropReferenced(const std::string &fk_table, int fk_column);
 };
 
 #endif  // TABLE_H_

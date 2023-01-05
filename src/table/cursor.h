@@ -8,7 +8,6 @@
 #include <cstring>
 
 #include "table.h"
-#include "../pagefile/buffer_manager.h"
 
 class RecordCursor {
 private:
@@ -18,18 +17,7 @@ private:
     BufType valid;
     BufType cached_record;
 
-    bool _step() {
-        if (this->slot == this->table->_getSlotNum() - 1) {
-            this->slot = 0;
-            ++this->page;
-            if (this->page == this->table->header->pages) return false;  // end of table
-            int index = BufferManager::bm().getPage(this->table->name, this->page);
-            memcpy(this->valid, BufferManager::bm().readBuffer(index), PAGE_HEADER_SIZE);
-        } else {
-            ++this->slot;
-        }
-        return true;
-    }
+    bool _step();
 
 public:
     explicit RecordCursor(Table *table)
@@ -43,19 +31,7 @@ public:
         delete[] cached_record;
     }
 
-    bool next() {
-        while (this->_step()) {
-            if (this->valid[this->slot >> 3] & (1 << (this->slot & 7))) {
-                int index = BufferManager::bm().getPage(this->table->name, this->page);
-                memcpy(this->cached_record,
-                       BufferManager::bm().readBuffer(index) + PAGE_HEADER_SIZE +
-                       this->slot * this->table->_getRecordSizeWithFlag(),
-                       this->table->_getRecordSizeWithFlag());
-                return true;
-            }
-        }
-        return false;
-    }
+    bool next();
 
     [[nodiscard]] Type *get(int column) const {
         return deserialize(this->cached_record +
@@ -65,41 +41,22 @@ public:
     }
 
     [[nodiscard]] unsigned getOffset() const {
-        return (this->page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE + this->slot * this->table->_getRecordSizeWithFlag();
+        return (this->page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE +
+               this->slot * this->table->_getRecordSizeWithFlag();
     }
 
-    void del() {
-        this->table->_deleteRecord(this->page, this->slot);
-    }
+    void del();
 
-    void set(const std::vector<std::tuple<int, std::string>> &updates) {
-        for (auto &update: updates) {
-            serializeFromString(std::get<1>(update),
-                                this->table->header->column_info[std::get<0>(update)].type,
-                                this->cached_record +
-                                this->table->header->column_info[std::get<0>(update)].offset,
-                                this->table->header->column_info[std::get<0>(update)].length);
-        }
-        this->table->_updateRecord(this->page, this->slot, this->cached_record);
-    }
+    void set(const std::vector<std::tuple<int, std::string>> &updates);
 
     /**
      * @brief move cursor to given offset in table
      * @param offset offset of a record
      * @param do_validate [NO USE NOW: WILL ALWAYS SKIP VALIDATION, AND CANNOT FURTHER `next()`]
      */
-    void moveTo(unsigned offset, bool do_validate = true) {
-        this->table->_offset_to_slot(offset, this->page, this->slot);
-        int index = BufferManager::bm().getPage(this->table->name, this->page);
-        memcpy(this->cached_record,
-               BufferManager::bm().readBuffer(index) + (offset & PAGE_SIZE_MASK),
-               this->table->_getRecordSizeWithFlag());
-    }
+    void moveTo(unsigned offset, bool do_validate = true);
 
-    void reset() {
-        this->page = Table::_getHeaderPageNum() - 1;
-        this->slot = table->_getSlotNum() - 1;
-    }
+    void reset();
 };
 
 #endif  // TABLE_CURSOR_H_

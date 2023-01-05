@@ -74,9 +74,17 @@ public:
 
     void remove(int key, unsigned record_offset) override;
 
-    [[deprecated]] unsigned search(int key) override ;
+    [[deprecated]] unsigned search(int key) override;
 
-    unsigned search(int key, unsigned &pos, unsigned &offset);
+    /**
+     * @brief search for key
+     * @param key key to search
+     * @param pos position of key in (leaf) node
+     * @param offset offset of (leaf) node
+     * @param match whether key is found exactly
+     * @return offset of first record whose value is not less than key
+     */
+    unsigned search(int key, unsigned &pos, unsigned &offset, bool &match);
 };
 
 #endif  // INT_INDEX_H_
