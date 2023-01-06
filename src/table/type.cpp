@@ -28,14 +28,14 @@ void serializeFromString(const std::string &value, ColumnType type, BufType buff
     }
 }
 
-Type *deserialize(BufType buf, ColumnType type, unsigned length) {
+Type *deserialize(BufType buf, ColumnType type) {
     switch (type) {
         case ColumnType::INT:
             return new Int(buf);
         case ColumnType::FLOAT:
             return new Float(buf);
         case ColumnType::VARCHAR:
-            return new VarChar(buf, length);
+            return new VarChar(buf);
         default:
             return nullptr;
     }

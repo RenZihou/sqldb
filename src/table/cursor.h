@@ -36,8 +36,7 @@ public:
     [[nodiscard]] Type *get(int column) const {
         return deserialize(this->cached_record +
                            this->table->header->column_info[column].offset,
-                           this->table->header->column_info[column].type,
-                           this->table->header->column_info[column].length);
+                           this->table->header->column_info[column].type);
     }
 
     [[nodiscard]] unsigned getOffset() const {

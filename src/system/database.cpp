@@ -96,7 +96,7 @@ void Database::useDb(const std::string &name) {
 void Database::showDb(Printer *printer) {
     printer->printHeader({"db_name"});
     for (const auto &db: this->databases) {
-        VarChar value((BufType) db.c_str(), db.length());
+        VarChar value(db);
         printer->printLine({&value});
     }
     printer->printEnd();
@@ -136,7 +136,7 @@ void Database::showTable(Printer *printer) {
     }
     printer->printHeader({"table_name"});
     for (const auto &table: this->tables) {
-        VarChar value((BufType) table.c_str(), table.length());
+        VarChar value(table);
         printer->printLine({&value});
     }
     printer->printEnd();

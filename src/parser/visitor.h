@@ -71,7 +71,7 @@ public:
 
     std::any visitWhereInList(SQLParser::WhereInListContext *ctx) override;
 
-//    std::any visitWhereLikeString(SQLParser::WhereLikeStringContext *ctx) override;
+    std::any visitWhereLikeString(SQLParser::WhereLikeStringContext *ctx) override;
 
     std::any visitColumn(SQLParser::ColumnContext *ctx) override;
 

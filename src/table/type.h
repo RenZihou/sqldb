@@ -143,7 +143,7 @@ class VarChar : public Type {
 private:
     std::string value;
 public:
-    explicit VarChar(BufType buf, unsigned length) : Type(), value((char *) buf) {}
+    explicit VarChar(BufType buf) : Type(), value((char *) buf) {}
 
     explicit VarChar(std::string expr) : Type(), value(std::move(expr)) {}
 
@@ -233,7 +233,7 @@ public:
  * @param length data length (number of bytes to read from buffer)
  * @return typed data
  */
-Type *deserialize(BufType buffer, ColumnType type, unsigned length);
+Type *deserialize(BufType buffer, ColumnType type);
 
 /**
  * @brief serializeFromString value to byte-form buffer

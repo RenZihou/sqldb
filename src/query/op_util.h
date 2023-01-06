@@ -118,6 +118,17 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
                     throw SqlDBException("column type mismatch");
                 }
             }
+        } else if (condition->getType() == ConditionType::Like) {
+            auto condition_ = dynamic_cast<ConditionLike *>(condition);
+            // prepare lhs column expression
+            ColumnType lhs_type;
+            unsigned lhs_length;
+            auto lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+            setupCondition(table, lhs, lhs_type, lhs_length,
+                           used_columns, used_columns_count);
+            if (lhs_type != ColumnType::VARCHAR) {
+                throw SqlDBException("column type mismatch");
+            }
         }
     }
     condition_values.resize(used_columns_count);
@@ -182,6 +193,17 @@ void conditionalIterRecordWithIndex(Table *table, const std::vector<Condition *>
                 if (lhs_type != rhs->value->getType()) {
                     throw SqlDBException("column type mismatch");
                 }
+            }
+        } else if (condition->getType() == ConditionType::Like) {
+            auto condition_ = dynamic_cast<ConditionLike *>(condition);
+            // prepare lhs column expression
+            ColumnType lhs_type;
+            unsigned lhs_length;
+            auto lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+            setupCondition(table, lhs, lhs_type, lhs_length,
+                           used_columns, used_columns_count);
+            if (lhs_type != ColumnType::VARCHAR) {
+                throw SqlDBException("column type mismatch");
             }
         }
     }

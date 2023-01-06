@@ -176,8 +176,7 @@ bool Table::getColumnNullable(int index) const {
 Type *Table::getColumnDefault(int index) const {
     if (this->header->column_info[index].flags & FLAG_HAS_DEFAULT) {
         return deserialize(this->header->defaults + this->header->column_info[index].offset,
-                           this->header->column_info[index].type,
-                           this->header->column_info[index].length);
+                           this->header->column_info[index].type);
     } else {
         return nullptr;
     }

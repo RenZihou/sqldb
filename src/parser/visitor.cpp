@@ -254,7 +254,8 @@ std::any Visitor::visitWhereOperatorExpression(SQLParser::WhereOperatorExpressio
             visit(ctx->column()));
     auto rhs = std::any_cast<Expression *>(visit(ctx->expression()));
     auto op = std::any_cast<CmpOp *>(visit(ctx->operator_()));
-    return dynamic_cast<Condition *>(new ConditionCmp(new ExprColumn(lhs_table, lhs_column), rhs, op));
+    return dynamic_cast<Condition *>(new ConditionCmp(new ExprColumn(lhs_table, lhs_column), rhs,
+                                                      op));
 }
 
 std::any Visitor::visitWhereInList(SQLParser::WhereInListContext *ctx) {
@@ -266,6 +267,15 @@ std::any Visitor::visitWhereInList(SQLParser::WhereInListContext *ctx) {
         expr_values.push_back(new ExprValue(value));
     }
     return dynamic_cast<Condition *>(new ConditionIn(new ExprColumn(table, column), expr_values));
+}
+
+std::any Visitor::visitWhereLikeString(SQLParser::WhereLikeStringContext *ctx) {
+    auto [table, column] = std::any_cast<std::tuple<std::string, std::string>>(
+            visit(ctx->column()));
+    std::string like_pattern = ctx->String()->getText();
+    like_pattern = like_pattern.substr(1, like_pattern.size() - 2);
+    return dynamic_cast<Condition *>(new ConditionLike(new ExprColumn(table, column),
+                                                       like_pattern));
 }
 
 std::any Visitor::visitColumn(SQLParser::ColumnContext *ctx) {

@@ -7,13 +7,14 @@
 
 #include <vector>
 #include <algorithm>
+#include <regex>
 
 #include "../table/type.h"
 #include "../table/type.h"
 #include "../table/cursor.h"
 
 enum class CompareType {
-    EQ, NE, LT, LE, GT, GE, LIKE, IN
+    EQ, NE, LT, LE, GT, GE, IN
 };
 
 struct CmpOp {
@@ -78,9 +79,6 @@ struct Expression {
 
 struct ExprValue : public Expression {
     Type *value;
-//    std::string value_s;
-
-//    [[deprecated]] explicit ExprValue(std::string value_s) : value(nullptr), value_s(std::move(value_s)) {}
 
     explicit ExprValue(Type *value) : value(value) {}
 
@@ -108,6 +106,7 @@ struct ExprColumn : public Expression {
 enum class ConditionType {
     Cmp,
     In,
+    Like,
 };
 
 struct Condition {
@@ -160,7 +159,27 @@ struct ConditionIn : public Condition {
     }
 };
 
-//struct ConditionLike : Condition {  // TODO new op in ConditionCmp?
-//};
+struct ConditionLike : Condition {  // TODO new op in ConditionCmp?
+    Expression *lhs;
+    std::regex pattern;
+
+    ConditionLike(Expression *lhs, const std::string &like_pattern) : lhs(lhs) {
+        std::regex reserved(R"([.*+?^=!:${}()|\[\]\/\\])");
+        std::string re_pattern = std::regex_replace(like_pattern, reserved, R"(\$&)");
+        re_pattern = std::regex_replace(re_pattern, std::regex(R"(%)"), ".*?");
+        re_pattern = std::regex_replace(re_pattern, std::regex(R"(_)"), ".");
+        this->pattern = std::regex(re_pattern);
+    }
+
+    ~ConditionLike() override {
+        delete lhs;
+    }
+
+    ConditionType getType() override { return ConditionType::Like; }
+
+    [[nodiscard]] bool satisfy(const std::vector<Type *> &values) const override {
+        return std::regex_match(this->lhs->pick(values)->toString(), this->pattern);
+    }
+};
 
 #endif  // COMPARE_H_
