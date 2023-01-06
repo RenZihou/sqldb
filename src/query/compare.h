@@ -78,9 +78,11 @@ struct Expression {
 
 struct ExprValue : public Expression {
     Type *value;
-    std::string value_s;
+//    std::string value_s;
 
-    explicit ExprValue(std::string value_s) : value(nullptr), value_s(std::move(value_s)) {}
+//    [[deprecated]] explicit ExprValue(std::string value_s) : value(nullptr), value_s(std::move(value_s)) {}
+
+    explicit ExprValue(Type *value) : value(value) {}
 
     ~ExprValue() override { delete value; }
 
@@ -138,19 +140,22 @@ struct ConditionCmp : public Condition {
 
 struct ConditionIn : public Condition {
     Expression *lhs;
-    std::vector<ExprValue> rhs;
+    std::vector<ExprValue *> rhs;
 
-    ConditionIn(Expression *lhs, std::vector<ExprValue> rhs) : lhs(lhs), rhs(std::move(rhs)) {}
+    ConditionIn(Expression *lhs, std::vector<ExprValue *> rhs) : lhs(lhs), rhs(std::move(rhs)) {}
 
     ~ConditionIn() override {
         delete lhs;
+        for (auto &i : rhs) {
+            delete i;
+        }
     }
 
     ConditionType getType() override { return ConditionType::In; }
 
     [[nodiscard]] bool satisfy(const std::vector<Type *> &values) const override {
-        return std::any_of(this->rhs.begin(), this->rhs.end(), [&](const ExprValue &r) {
-            return Equal()(this->lhs->pick(values), r.value);
+        return std::any_of(this->rhs.begin(), this->rhs.end(), [&](ExprValue *r) {
+            return Equal()(this->lhs->pick(values), r->value);
         });
     }
 };

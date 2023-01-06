@@ -40,52 +40,50 @@ void RecordCursor::del() {
         int pk_column;
         std::string pk_name;
         this->table->getPrimaryKey(pk_column, pk_name);
-        auto old_type = this->get(pk_column);
-        int old_value = dynamic_cast<Int *>(old_type)->getValue();
-        delete old_type;
+        auto old_value = this->get(pk_column);
         for (unsigned i = 0; i < this->table->header->references; ++i) {
             auto fk_table = new Table(this->table->header->reference_info[i].fk_table);
             std::string fk_column = fk_table->header->column_info[this->table->header->reference_info[i].fk_column].name;
             std::vector<std::tuple<std::string, std::string>> selectors;
             selectors.emplace_back("", fk_column);
-            auto condition = new ConditionCmp(new ExprColumn("", fk_column), new ExprValue(std::to_string(old_value)), new Equal);
+            auto condition = new ConditionCmp(new ExprColumn("", fk_column), new ExprValue(old_value), new Equal);
             CounterPrinter printer;
             OpTableSelect(selectors, {this->table->header->reference_info[i].fk_table}, {condition}).execute(&printer);
             if (printer.getCount() > 0) {
                 throw SqlDBException("foreign key constraint violated: reference exists");
             }
         }
-
+        delete old_value;
     }
     this->table->_deleteRecord(this->page, this->slot);
 }
 
-void RecordCursor::set(const std::vector<std::tuple<int, std::string>> &updates) {
-    for (auto &[column, value_s]: updates) {
+void RecordCursor::set(const std::vector<std::tuple<int, Type *>> &updates) {
+    for (auto &[column, value]: updates) {
         unsigned pos, offset;
         bool match;
         if (this->table->header->column_info[column].flags & FLAG_IS_PRIMARY) {
             // check primary key constraint
             IntIndex index(this->table->name, this->table->header->column_info[column].name);
-            if (index.search(std::stoi(value_s), pos, offset, match) && match) {
+            if (index.search(dynamic_cast<Int *>(value)->getValue(), pos, offset, match) && match) {
                 throw SqlDBException("primary key constraint violated: duplicate value");
             }
-            auto old_type = this->get(column);
-            int old_value = dynamic_cast<Int *>(old_type)->getValue();
-            delete old_type;
+            auto old_value = this->get(column);
+//            int old_value = dynamic_cast<Int *>(old_type)->getValue();
             // check reference constraint
             for (unsigned i = 0; i < this->table->header->references; ++i) {
                 auto fk_table = new Table(this->table->header->reference_info[i].fk_table);
                 std::string fk_column = fk_table->header->column_info[this->table->header->reference_info[i].fk_column].name;
                 std::vector<std::tuple<std::string, std::string>> selectors;
                 selectors.emplace_back("", fk_column);
-                auto condition = new ConditionCmp(new ExprColumn("", fk_column), new ExprValue(std::to_string(old_value)), new Equal);
+                auto condition = new ConditionCmp(new ExprColumn("", fk_column), new ExprValue(old_value), new Equal);
                 CounterPrinter printer;
                 OpTableSelect(selectors, {this->table->header->reference_info[i].fk_table}, {condition}).execute(&printer);
                 if (printer.getCount() > 0) {
                     throw SqlDBException("foreign key constraint violated: reference exists");
                 }
             }
+            delete old_value;
         }
         // check foreign key constraint
         if (this->table->header->column_info[column].flags & FLAG_IS_FOREIGN) {
@@ -97,18 +95,18 @@ void RecordCursor::set(const std::vector<std::tuple<int, std::string>> &updates)
                     ref_table.getPrimaryKey(ref_column, ref_pk);
                     IntIndex index_(this->table->header->foreign_key_info[i].ref_table,
                                     ref_table.header->column_info[ref_column].name);
-                    if (!(index_.search(std::stoi(value_s),pos, offset, match) && match)) {
+                    if (!(index_.search(dynamic_cast<Int *>(value)->getValue(), pos, offset, match) && match)) {
                         throw SqlDBException(
                                 "foreign key constraint violated: no target found");
                     }
                 }
             }
         }
-        serializeFromString(value_s,
-                            this->table->header->column_info[column].type,
-                            this->cached_record +
-                            this->table->header->column_info[column].offset,
-                            this->table->header->column_info[column].length);
+        if (value->getType() != this->table->header->column_info[column].type) {
+            throw SqlDBException("column type mismatch");
+        }
+        value->serialize(this->cached_record + this->table->header->column_info[column].offset,
+                         this->table->header->column_info[column].length);
     }
     this->table->_updateRecord(this->page, this->slot, this->cached_record);
 }

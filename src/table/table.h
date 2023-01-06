@@ -19,7 +19,7 @@ struct Column {
     ColumnType type;
     unsigned length;
     char flags;
-    std::string default_value;
+    Type *default_value;
 };
 
 struct ColumnInfo {
@@ -188,9 +188,9 @@ public:
 
     /**
      * @brief insert a new record into table
-     * @param values list of values in plain text sorted by column index
+     * @param values list of typed values sorted by column index
      */
-    void insertRecord(const std::vector<std::string> &values);
+    void insertRecord(const std::vector<Type *> &values);
 
     /**
      * @brief add `has index` flag to a column

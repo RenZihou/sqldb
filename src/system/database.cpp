@@ -17,7 +17,7 @@ void Database::boost() {
                 .type=ColumnType::VARCHAR,
                 .length=MAX_DATABASE_NAME_LEN,
                 .flags=0,
-                .default_value=""}}, {}).execute(nullptr);
+                .default_value=nullptr}}, {}).execute(nullptr);
     } else {
         MemoryStringPrinter printer;
         OpTableSelect({std::make_tuple("", "*")}, {".dbs"}, {}).execute(&printer);
@@ -82,7 +82,7 @@ void Database::useDb(const std::string &name) {
                 .type=ColumnType::VARCHAR,
                 .length=MAX_TABLE_NAME_LEN,
                 .flags=0,
-                .default_value=""}}, {}).execute(&printer);
+                .default_value=nullptr}}, {}).execute(&printer);
         this->tables.clear();
     } else {
         MemoryStringPrinter printer;
@@ -112,7 +112,7 @@ void Database::createTable(const std::string &name) {
     }
     this->tables.emplace_back(name);
     DummyPrinter printer;
-    OpTableInsert(".tables", {{name}}).execute(&printer);
+    OpTableInsert(".tables", {{new VarChar(name)}}).execute(&printer);
 }
 
 void Database::dropTable(const std::string &name) {
@@ -124,7 +124,7 @@ void Database::dropTable(const std::string &name) {
     }
     this->tables.erase(std::remove(this->tables.begin(), this->tables.end(), name),
                        this->tables.end());
-    auto condition = new ConditionCmp(new ExprColumn("", "table_name"), new ExprValue(name), new Equal);
+    auto condition = new ConditionCmp(new ExprColumn("", "table_name"), new ExprValue(new VarChar(name)), new Equal);
     DummyPrinter printer;
     OpTableDelete(".tables", {condition}).execute(&printer);
     FileManager::fm().rmFile(name);
@@ -151,9 +151,9 @@ void Database::shutdown() {
     FileManager::fm().setWd(".");
     DummyPrinter printer;
     OpTableDelete(".dbs", {}).execute(&printer);
-    std::vector<std::vector<std::string>> values;
+    std::vector<std::vector<Type *>> values;
     for (const auto &db: this->databases) {
-        values.emplace_back(std::vector<std::string>{db});
+        values.emplace_back(std::vector<Type *>{new VarChar(db)});
     }
     OpTableInsert(".dbs", values).execute(&printer);
     BufferManager::bm().writeBackAll();

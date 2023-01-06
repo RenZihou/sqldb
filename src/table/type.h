@@ -7,6 +7,8 @@
 
 #include <string>
 #include <utility>
+#include <cstring>
+#include <iostream>
 
 #include "../util/constants.h"
 
@@ -24,7 +26,7 @@ public:
 
     virtual ~Type() = default;
 
-//    virtual BufType serialize() = 0;  // TODO
+    virtual void serialize(BufType buffer, unsigned length) const = 0;
 
     [[nodiscard]] virtual ColumnType getType() const = 0;
 
@@ -52,11 +54,13 @@ public:
 
     explicit Int(const std::string& expr) : Type(), value(std::stoi(expr)) {}
 
+    void serialize(BufType buffer, unsigned length) const override { *(int *) buffer = this->value; }
+
     [[nodiscard]] ColumnType getType() const override { return ColumnType::INT; }
 
-    [[nodiscard]] int getValue() const { return value; }
+    [[nodiscard]] int getValue() const { return this->value; }
 
-    [[nodiscard]] std::string toString() const override { return std::to_string(value); }
+    [[nodiscard]] std::string toString() const override { return std::to_string(this->value); }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::INT
@@ -98,9 +102,11 @@ public:
 
     explicit Float(const std::string &expr) : Type(), value(std::stof(expr)) {}
 
+    void serialize(BufType buffer, unsigned length) const override { *(float *) buffer = this->value;}
+
     [[nodiscard]] ColumnType getType() const override { return ColumnType::FLOAT; }
 
-    [[nodiscard]] std::string toString() const override { return std::to_string(value); }
+    [[nodiscard]] std::string toString() const override { return std::to_string(this->value); }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::FLOAT
@@ -141,9 +147,19 @@ public:
 
     explicit VarChar(std::string expr) : Type(), value(std::move(expr)) {}
 
+    void serialize(BufType buffer, unsigned length) const override {
+        if (value.length() > length - 1) {
+            std::cerr << "WARNING: value too long (" << value.length() << ") for column" << std::endl;
+        } else {
+            length = value.length();
+        }
+        memcpy(buffer, value.c_str(), length);
+        buffer[length] = '\0';
+    }
+
     [[nodiscard]] ColumnType getType() const override { return ColumnType::VARCHAR; }
 
-    [[nodiscard]] std::string toString() const override { return value; }
+    [[nodiscard]] std::string toString() const override { return this->value; }
 
     bool operator==(const Type &rhs) const override {
         return rhs.getType() == ColumnType::VARCHAR
@@ -183,6 +199,8 @@ public:
     [[nodiscard]] ColumnType getType() const override { return ColumnType::UNKNOWN; }
 
     [[nodiscard]] std::string toString() const override { return "NULL"; }
+
+    void serialize(BufType buffer, unsigned length) const override {}
 
     bool operator==(const Type &rhs) const override {
         return false;
@@ -224,7 +242,7 @@ Type *deserialize(BufType buffer, ColumnType type, unsigned length);
  * @param buffer buffer to write serialized data
  * @param length data length (number of bytes to be written in buffer)
  */
-void serializeFromString(const std::string &value, ColumnType type,
+[[deprecated]] void serializeFromString(const std::string &value, ColumnType type,
                          BufType buffer, unsigned length);
 
 #endif  // TYPE_H_

@@ -99,10 +99,9 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
                 setupCondition(table, rhs, used_columns, used_columns_count);
             } else if (condition_->rhs->getType() == ExpressionType::VALUE) {
                 auto rhs = dynamic_cast<ExprValue *>(condition_->rhs);
-                auto buffer = new unsigned char[lhs_length];
-                serializeFromString(rhs->value_s, lhs_type, buffer, lhs_length);
-                rhs->value = deserialize(buffer, lhs_type, lhs_length);
-                delete[] buffer;
+                if (lhs_type != rhs->value->getType()) {
+                    throw SqlDBException("column type mismatch");
+                }
             } else {
                 throw SqlDBException("invalid expression type");
             }
@@ -115,10 +114,9 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
             setupCondition(table, lhs, lhs_type, lhs_length,
                            used_columns, used_columns_count);
             for (auto &rhs: condition_->rhs) {
-                auto buffer = new unsigned char[lhs_length];
-                serializeFromString(rhs.value_s, lhs_type, buffer, lhs_length);
-                rhs.value = deserialize(buffer, lhs_type, lhs_length);
-                delete[] buffer;
+                if (lhs_type != rhs->value->getType()) {
+                    throw SqlDBException("column type mismatch");
+                }
             }
         }
     }
@@ -166,10 +164,9 @@ void conditionalIterRecordWithIndex(Table *table, const std::vector<Condition *>
                 setupCondition(table, rhs, used_columns, used_columns_count);
             } else if (condition_->rhs->getType() == ExpressionType::VALUE) {
                 auto rhs = dynamic_cast<ExprValue *>(condition_->rhs);
-                auto buffer = new unsigned char[lhs_length];
-                serializeFromString(rhs->value_s, lhs_type, buffer, lhs_length);
-                rhs->value = deserialize(buffer, lhs_type, lhs_length);
-                delete[] buffer;
+                if (lhs_type != rhs->value->getType()) {
+                    throw SqlDBException("column type mismatch");
+                }
             } else {
                 throw SqlDBException("invalid expression type");
             }
@@ -182,10 +179,9 @@ void conditionalIterRecordWithIndex(Table *table, const std::vector<Condition *>
             setupCondition(table, lhs, lhs_type, lhs_length,
                            used_columns, used_columns_count);
             for (auto &rhs: condition_->rhs) {
-                auto buffer = new unsigned char[lhs_length];
-                serializeFromString(rhs.value_s, lhs_type, buffer, lhs_length);
-                rhs.value = deserialize(buffer, lhs_type, lhs_length);
-                delete[] buffer;
+                if (lhs_type != rhs->value->getType()) {
+                    throw SqlDBException("column type mismatch");
+                }
             }
         }
     }
@@ -410,14 +406,13 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
                 }
             } else if (condition_->rhs->getType() == ExpressionType::VALUE) {
                 auto rhs = dynamic_cast<ExprValue *>(condition_->rhs);
-                auto buffer = new unsigned char[lhs_length];
-                serializeFromString(rhs->value_s, lhs_type, buffer, lhs_length);
-                rhs->value = deserialize(buffer, lhs_type, lhs_length);
-                delete[] buffer;
+                if (lhs_type != rhs->value->getType()) {
+                    throw SqlDBException("column type mismatch");
+                }
             } else {
                 throw SqlDBException("invalid expression type");
             }
-        } else {
+        } else if (condition->getType() == ConditionType::In) {
             // TODO condition in
         }
     }
@@ -495,23 +490,23 @@ void checkIndexOnCondition(std::string table_name, std::vector<Condition *> &con
                     index_column = lhs->column;
                     switch (condition_->op->getType()) {
                         case CompareType::EQ:
-                            begin = std::stoi(rhs->value_s);  // rhs should only be int
+                            begin = dynamic_cast<Int *>(rhs->value)->getValue();  // rhs should only be int
                             end = begin + 1;
                             break;
                         case CompareType::LT:
                             begin = MIN_INT;
-                            end = std::stoi(rhs->value_s);
+                            end = dynamic_cast<Int *>(rhs->value)->getValue();
                             break;
                         case CompareType::LE:
                             begin = MIN_INT;
-                            end = std::stoi(rhs->value_s) + 1;
+                            end = dynamic_cast<Int *>(rhs->value)->getValue() + 1;
                             break;
                         case CompareType::GT:
-                            begin = std::stoi(rhs->value_s) + 1;
+                            begin = dynamic_cast<Int *>(rhs->value)->getValue() + 1;
                             end = MAX_INT;
                             break;
                         case CompareType::GE:
-                            begin = std::stoi(rhs->value_s);
+                            begin = dynamic_cast<Int *>(rhs->value)->getValue();
                             end = MAX_INT;
                             break;
                         default:

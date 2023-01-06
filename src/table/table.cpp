@@ -246,15 +246,13 @@ void Table::addColumn(const Column &column, const std::string &after) {
            this->header->defaults + offset_begin,
            sizeof(this->header->defaults) - offset_end);
     if (column.flags & FLAG_HAS_DEFAULT) {
-        serializeFromString(column.default_value, column.type,
-                            this->header->defaults + offset_begin,
-                            column.length);
+        column.default_value->serialize(this->header->defaults + offset_begin, column.length);
     }
     // TODO modify data (this function should only be called when creating table for now)
     // TODO modify fk / ref info
 }
 
-void Table::insertRecord(const std::vector<std::string> &values) {
+void Table::insertRecord(const std::vector<Type *> &values) {
     if (values.size() != this->header->columns) {
         throw SqlDBException("column number mismatch");
     }
@@ -264,7 +262,7 @@ void Table::insertRecord(const std::vector<std::string> &values) {
     for (unsigned i = 0; i < this->header->columns; ++i) {
         if (this->header->column_info[i].flags & FLAG_IS_PRIMARY) {
             IntIndex index(this->name, this->header->column_info[i].name);
-            if (index.search(std::stoi(values[i]),
+            if (index.search(dynamic_cast<Int *>(values[i])->getValue(),
                              index_pos, index_offset, index_match) && index_match) {
                 throw SqlDBException("primary key constraint violated: duplicate value");
             }
@@ -278,23 +276,25 @@ void Table::insertRecord(const std::vector<std::string> &values) {
         ref_table.getPrimaryKey(ref_column, ref_pk);
         IntIndex index_(this->header->foreign_key_info[i].ref_table,
                         ref_table.header->column_info[ref_column].name);
-        if (!(index_.search(std::stoi(values[this->header->foreign_key_info[i].column]),
+        if (!(index_.search(dynamic_cast<Int *>((values[this->header->foreign_key_info[i].column]))->getValue(),
                             index_pos, index_offset, index_match) && index_match)) {
             throw SqlDBException("foreign key constraint violated: no target found");
         }
     }
     auto data = new unsigned char[this->_getRecordSizeWithFlag()];
     for (unsigned i = 0; i < this->header->columns; ++i) {
-        serializeFromString(values[i], this->header->column_info[i].type,
-                            data + this->header->column_info[i].offset,
-                            this->header->column_info[i].length);
+        if (values[i]->getType() != this->header->column_info[i].type) {
+            throw SqlDBException("column type mismatch");
+        }
+        values[i]->serialize(data + this->header->column_info[i].offset,
+                             this->header->column_info[i].length);
         *(unsigned *) data = 0;  // TODO null flags
     }
     unsigned offset = this->_insertRecord(data);
     for (unsigned i = 0; i < this->header->columns; ++i) {
         if (this->header->column_info[i].flags & FLAG_HAS_INDEX) {
             IntIndex index(this->name, this->header->column_info[i].name);
-            index.insert(std::stoi(values[i]), offset);
+            index.insert(dynamic_cast<Int *>(values[i])->getValue(), offset);
         }
     }
     delete[] data;

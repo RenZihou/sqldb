@@ -161,16 +161,16 @@ void OpTableDelete::execute(Printer *printer) {  // TODO move index maintenance 
 void OpTableUpdate::execute(Printer *printer) {
     Database::db().assertTableExists(this->name);
     auto table = new Table(this->name);
-    std::vector<std::tuple<int, std::string>> update_columns;
+    std::vector<std::tuple<int, Type *>> update_columns;
     std::vector<std::tuple<int, int, IntIndex *>> update_indexes;
-    for (const auto &[column, value_s]: this->updates) {
+    for (const auto &[column, value]: this->updates) {
         int column_index = table->getColumnIndex(column);
         if (column_index == -1) {
             throw SqlDBException("column not found: " + column);
         }
-        update_columns.emplace_back(column_index, value_s);
+        update_columns.emplace_back(column_index, value);
         if (table->hasIndex(column_index)) {
-            update_indexes.emplace_back(column_index, std::stoi(value_s),
+            update_indexes.emplace_back(column_index, dynamic_cast<Int *>(value)->getValue(),
                                         new IntIndex(this->name, column));
         }
     }

@@ -47,7 +47,7 @@ public:
 
     void del();
 
-    void set(const std::vector<std::tuple<int, std::string>> &updates);
+    void set(const std::vector<std::tuple<int, Type *>> &updates);
 
     /**
      * @brief move cursor to given offset in table

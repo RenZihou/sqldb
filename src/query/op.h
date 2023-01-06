@@ -152,10 +152,10 @@ public:
 class OpTableInsert : public Op {
 private:
     std::string name;
-    std::vector<std::vector<std::string>> values;
+    std::vector<std::vector<Type *>> values;
 
 public:
-    explicit OpTableInsert(std::string name, std::vector<std::vector<std::string>> values)
+    explicit OpTableInsert(std::string name, std::vector<std::vector<Type *>> values)
             : Op(), name(std::move(name)), values(std::move(values)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_INSERT; }
@@ -186,12 +186,12 @@ public:
 class OpTableUpdate : public Op {
 private:
     std::string name;
-    std::vector<std::tuple<std::string, std::string>> updates;
+    std::vector<std::tuple<std::string, Type *>> updates;
     std::vector<Condition *> conditions;
 
 public:
     explicit OpTableUpdate(std::string name,
-                           std::vector<std::tuple<std::string, std::string>> updates,
+                           std::vector<std::tuple<std::string, Type *>> updates,
                            std::vector<Condition *> conditions)
             : Op(), name(std::move(name)), updates(std::move(updates)),
               conditions(std::move(conditions)) {}
