@@ -35,18 +35,16 @@ int start_loop() {
         } while (!command.empty() && command[command.size() - 1] != ';');
         // parse
         op = parse(command);  // sql commands
-        // TODO logical optimization here
         // execute
         try {
             while (op) {
+                op->optimize();
                 op->execute(&printer);
                 op = op->getNext();
             }
-//            execute(op, &printer);
         } catch (SqlDBException &e) {
             std::cerr << "ERROR: " << e.what() << std::endl;
         }
-        // print
         delete op;
     }
 }

@@ -71,9 +71,9 @@ void searchTableColumn(Table *primary, Table *secondary, const std::string &colu
     primary_index = primary->getColumnIndex(column);
     if (primary_index == -1) {
         secondary_index = secondary->getColumnIndex(column);
-        if (secondary_index == -1) {
-            throw SqlDBException("column not found: " + column);
-        }
+//        if (secondary_index == -1) {
+//            throw SqlDBException("column not found: " + column);
+//        }
     }
 }
 
@@ -231,6 +231,16 @@ void conditionalIterRecordWithIndex(Table *table, const std::vector<Condition *>
     }
 }
 
+/**
+ * @param table_name table name
+ * @param columns selected columns
+ * @param conditions conditions
+ * @param use_index whether has available index
+ * @param index_column (VALID ONLY IF use_index == true) which column index to use
+ * @param begin (VALID ONLY IF use_index == true) begin key (inclusive)
+ * @param end (VALID ONLY IF use_index == true) end key (exclusive)
+ * @param printer
+ */
 void conditionalSelect(const std::string &table_name,
                        const std::vector<std::tuple<std::string, std::string>> &columns,
                        const std::vector<Condition *> &conditions,
@@ -390,17 +400,7 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
                                secondary_used_columns, secondary_condition_columns,
                                secondary_used_columns_count, total_used_columns_count);
             } else {
-                int primary_index, secondary_index;
-                searchTableColumn(primary, secondary, lhs->column, primary_index, secondary_index);
-                if (primary_index != -1) {
-                    setupCondition(primary, lhs, lhs_type, lhs_length,
-                                   primary_used_columns, primary_condition_columns,
-                                   primary_used_columns_count, total_used_columns_count);
-                } else {
-                    setupCondition(secondary, lhs, lhs_type, lhs_length,
-                                   secondary_used_columns, secondary_condition_columns,
-                                   secondary_used_columns_count, total_used_columns_count);
-                }
+                throw SqlDBException("table not found: " + lhs->table);
             }
             if (condition_->rhs->getType() == ExpressionType::COLUMN) {
                 // prepare lhs column expression
@@ -413,18 +413,7 @@ void conditionalJoin(const std::string &primary_table, const std::string &second
                                    secondary_condition_columns,
                                    secondary_used_columns_count, total_used_columns_count);
                 } else {
-                    int primary_index, secondary_index;
-                    searchTableColumn(primary, secondary, rhs->column, primary_index,
-                                      secondary_index);
-                    if (primary_index != -1) {
-                        setupCondition(primary, rhs, primary_used_columns,
-                                       primary_condition_columns,
-                                       primary_used_columns_count, total_used_columns_count);
-                    } else {
-                        setupCondition(secondary, rhs, secondary_used_columns,
-                                       secondary_condition_columns,
-                                       secondary_used_columns_count, total_used_columns_count);
-                    }
+                    throw SqlDBException("table not found: " + rhs->table);
                 }
             } else if (condition_->rhs->getType() == ExpressionType::VALUE) {
                 auto rhs = dynamic_cast<ExprValue *>(condition_->rhs);

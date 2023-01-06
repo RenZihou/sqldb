@@ -18,7 +18,6 @@ enum class CompareType {
 };
 
 struct CmpOp {
-//public:
     CmpOp() = default;
 
     virtual ~CmpOp() = default;
@@ -159,7 +158,7 @@ struct ConditionIn : public Condition {
     }
 };
 
-struct ConditionLike : Condition {  // TODO new op in ConditionCmp?
+struct ConditionLike : Condition {
     Expression *lhs;
     std::regex pattern;
 

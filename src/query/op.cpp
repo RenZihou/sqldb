@@ -12,6 +12,8 @@ void Op::execute(Printer *printer) {
     throw SqlDBException("not supported syntax");
 }
 
+void Op::optimize() {}
+
 void OpDbCreate::execute(Printer *printer) {
     Database::db().createDb(this->name);
 }
@@ -193,6 +195,72 @@ void OpTableUpdate::execute(Printer *printer) {
     delete table;
     for (const auto &index: update_indexes) {
         delete std::get<2>(index);
+    }
+}
+
+void OpTableSelect::optimize() {
+    if (this->tables.size() == 2) {
+        auto primary = new Table(this->tables[0]);
+        auto secondary = new Table(this->tables[1]);
+        // add table name in column expression
+        for (const auto &condition : this->conditions) {
+            ExprColumn *lhs = nullptr;
+            ExprColumn *rhs = nullptr;
+            if (condition->getType() == ConditionType::Cmp) {
+                auto condition_ = dynamic_cast<ConditionCmp *>(condition);
+                lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+                if (condition_->rhs->getType() == ExpressionType::COLUMN) {
+                    rhs = dynamic_cast<ExprColumn *>(condition_->rhs);
+                }
+            } else if (condition->getType() == ConditionType::In) {
+                auto condition_ = dynamic_cast<ConditionIn *>(condition);
+                lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+            } else if (condition->getType() == ConditionType::Like) {
+                auto condition_ = dynamic_cast<ConditionLike *>(condition);
+                lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+            }
+            if (lhs && lhs->table.empty()) {
+                int primary_index, secondary_index;
+                searchTableColumn(primary, secondary, lhs->column,
+                                  primary_index, secondary_index);
+                if (primary_index != -1) {
+                    lhs->table = this->tables[0];
+                } else if (secondary_index != -1) {
+                    lhs->table = this->tables[1];
+                } else {
+                    throw SqlDBException("column not found: " + lhs->column);
+                }
+            }
+            if (rhs && rhs->table.empty()) {
+                int primary_index, secondary_index;
+                searchTableColumn(primary, secondary, rhs->column,
+                                  primary_index, secondary_index);
+                if (primary_index != -1) {
+                    rhs->table = this->tables[0];
+                } else if (secondary_index != -1) {
+                    rhs->table = this->tables[1];
+                } else {
+                    throw SqlDBException("column not found: " + rhs->column);
+                }
+            }
+        }
+        // optimize for t1.c1 = t2.c2 condition
+
+//        for (const auto &condition : this->conditions) {
+//            if (condition->getType() == ConditionType::Cmp) {
+//                auto condition_ = dynamic_cast<ConditionCmp *>(condition);
+//                auto lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+//                if (condition_->rhs->getType() == ExpressionType::COLUMN) {
+//                    auto rhs = dynamic_cast<ExprColumn *>(condition_->rhs);
+//                    if (lhs->table != rhs->table && condition_->op->getType() == CompareType::EQ) {
+//                        // search for index
+//
+//                    }
+//                }
+//            }
+//        }
+        delete primary;
+        delete secondary;
     }
 }
 

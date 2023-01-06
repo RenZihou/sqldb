@@ -56,6 +56,8 @@ public:
     [[nodiscard]] Op *getNext() const { return this->_next; }
 
     virtual void execute(Printer *printer);
+
+    virtual void optimize();
 };
 
 class OpDbCreate : public Op {
@@ -229,6 +231,8 @@ public:
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_SELECT; }
 
     void execute(Printer *printer) override;
+
+    void optimize() override;
 };
 
 class OpTableAlterAddIndex : public Op {
