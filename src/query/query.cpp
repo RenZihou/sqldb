@@ -10,6 +10,7 @@
 #include "../system/database.h"
 #include "../parser/parser.h"
 #include "../util/exception.h"
+#include "../util/stopwatch.h"
 
 void print_prompt(bool multi_line = false) {
     std::string prompt = Database::db().getCurrentDb().empty()
@@ -22,6 +23,7 @@ int start_loop() {
     std::string line;
     Op *op;
     Printer printer;
+    Stopwatch stopwatch;
     while (true) {
         // read
         bool multi_line = false;
@@ -38,8 +40,11 @@ int start_loop() {
         // execute
         try {
             while (op) {
+                stopwatch.start();
                 op->optimize();
                 op->execute(&printer);
+                stopwatch.stop();
+                printf("Used Time: %.3lf seconds\n\n", stopwatch.getElapsedSeconds());
                 op = op->getNext();
             }
         } catch (SqlDBException &e) {

@@ -64,7 +64,9 @@ IntIndexNode *IntIndex::_newNode(unsigned &offset) {
         buf += (this->header->next_empty & PAGE_SIZE_MASK);
         this->header->next_empty = ((unsigned *) buf)[0];
     }
-    return new IntIndexNode;
+    auto node = new IntIndexNode;
+    memset(node, 0, sizeof(IntIndexNode));
+    return node;
 }
 
 IntIndexNode *IntIndex::_readNode(unsigned offset) {
@@ -298,8 +300,8 @@ void IntIndex::insert(int key, unsigned record_offset) {
         delete node;
         return;
     }
-    node = this->_readNode(this->header->root);
     unsigned offset = this->header->root;
+    node = this->_readNode(offset);
     while (!(node->size & (1 << 31))) {  // find leaf node to insert
         this->_search_path.push_back(offset);
         bool found = false;
@@ -323,8 +325,8 @@ void IntIndex::insert(int key, unsigned record_offset) {
     while (i < size && key > node->keys[i]) ++i;
     if (i < size && key == node->keys[i]) {  // insert into overflow node
         if (node->children[i] & 1) {  // already have an overflow node
-            auto overflow_node = (IntIndexOverflowNode *)this->_readNode(node->children[i] & ~1);
-            unsigned new_overflow_offset = node->children[i];
+            unsigned new_overflow_offset = node->children[i] & ~1;
+            auto overflow_node = (IntIndexOverflowNode *)this->_readNode(new_overflow_offset);
             while (overflow_node->size == 2 * BTREE_ORDER) {  // find the last one to insert
                 new_overflow_offset = overflow_node->children[2 * BTREE_ORDER];
                 if (new_overflow_offset == 0) {
@@ -343,7 +345,7 @@ void IntIndex::insert(int key, unsigned record_offset) {
             delete node;
         } else {  // create a new overflow node and insert two records
             unsigned old_record_offset = node->children[i];
-            auto overflow_node = (IntIndexOverflowNode *)this->_newNode(node->children[i]);
+            auto overflow_node = (IntIndexOverflowNode *)this->_newNode(old_record_offset);
             overflow_node->children[0] = old_record_offset;
             overflow_node->children[1] = record_offset;
             overflow_node->size = 2;
@@ -457,8 +459,8 @@ void IntIndex::remove(int key, unsigned int record_offset) {
     }
     if (!found) return;
     if (node->children[pos] & 1) {  // links to overflow node
-        auto overflow_node = (IntIndexOverflowNode *)this->_readNode(node->children[pos] & ~1);
         unsigned overflow_offset = node->children[pos] & ~1;
+        auto overflow_node = (IntIndexOverflowNode *)this->_readNode(overflow_offset);
         unsigned hit_offset;
         unsigned hit_pos = 2 * BTREE_ORDER + 1;
         unsigned hit_replace;
@@ -628,8 +630,8 @@ unsigned IntIndex::search(int key, unsigned &pos, unsigned &offset, bool &match)
     if (this->header->root == 0) {
         return 0;
     }
-    auto node = this->_readNode(this->header->root);
     offset = this->header->root;
+    auto node = this->_readNode(offset);
     while (!(node->size & (1 << 31))) {  // find leaf node to insert
         bool found = false;
         for (unsigned i = 0; i < node->size; i++) {  // flag = 0, no need to mask

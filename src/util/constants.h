@@ -45,8 +45,7 @@ typedef unsigned char *BufType;
 
 /* ==== index ==== */
 
-#define BTREE_ORDER 7  // order of B+ tree, now there will be exactly 2 index node on each page
-// TODO
+#define BTREE_ORDER 255  // order of B+ tree, now there will be exactly 2 index node on each page
 
 /* === DATABASE ==== */
 

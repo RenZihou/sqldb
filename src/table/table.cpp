@@ -46,12 +46,12 @@ Table::~Table() {
     delete this->header;
 }
 
-inline unsigned Table::_getRecordSizeWithFlag() const {
+unsigned Table::_getRecordSizeWithFlag() const {
     return this->header->column_info[this->header->columns - 1].offset +
            this->header->column_info[this->header->columns - 1].length;
 }
 
-inline unsigned Table::_getHeaderPageNum() {
+unsigned Table::_getHeaderPageNum() {
     return (sizeof(TableHeader) - 1) / PAGE_SIZE + 1;
 }
 
@@ -59,14 +59,13 @@ unsigned Table::_getSlotNum() const {
     return (PAGE_SIZE - PAGE_HEADER_SIZE) / this->_getRecordSizeWithFlag();
 }
 
-inline void Table::_offset_to_slot(unsigned int offset, unsigned int &page,
+void Table::_offset_to_slot(unsigned int offset, unsigned int &page,
                                    unsigned int &slot) const {
     page = offset >> PAGE_SIZE_IDX;
     slot = ((offset & PAGE_SIZE_MASK) - PAGE_HEADER_SIZE) / this->_getRecordSizeWithFlag();
 }
 
-inline void
-Table::_slot_to_offset(unsigned int &offset, unsigned int page, unsigned int slot) const {
+void Table::_slot_to_offset(unsigned int &offset, unsigned int page, unsigned int slot) const {
     offset = (page << PAGE_SIZE_IDX) + PAGE_HEADER_SIZE + slot * this->_getRecordSizeWithFlag();
 }
 
@@ -272,7 +271,7 @@ void Table::insertRecord(const std::vector<Type *> &values) {
         Table ref_table(this->header->foreign_key_info[i].ref_table);
         int ref_column;
         std::string ref_pk;
-        ref_table.getPrimaryKey(ref_column, ref_pk);
+        ref_table.getPrimaryKey(ref_column, ref_pk);  // primary key must exist
         IntIndex index_(this->header->foreign_key_info[i].ref_table,
                         ref_table.header->column_info[ref_column].name);
         if (!(index_.search(dynamic_cast<Int *>((values[this->header->foreign_key_info[i].column]))->getValue(),

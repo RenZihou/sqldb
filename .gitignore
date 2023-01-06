@@ -1,5 +1,6 @@
 # Project exclude paths
 /cmake-build-debug/
+/cmake-build-release/
 /build/
 /.idea/
 
@@ -9,4 +10,6 @@
 valgrind.out
 
 d/
+data/
+DATASET/
 .dbs

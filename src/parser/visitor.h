@@ -57,6 +57,8 @@ public:
 
     std::any visitPrimaryKeyField(SQLParser::PrimaryKeyFieldContext *ctx) override;
 
+    std::any visitForeignKeyField(SQLParser::ForeignKeyFieldContext *ctx) override;
+
     std::any visitType(SQLParser::TypeContext *ctx) override;
 
     std::any visitValueLists(SQLParser::ValueListsContext *ctx) override;

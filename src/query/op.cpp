@@ -47,6 +47,9 @@ void OpTableCreate::execute(Printer *printer) {
     } else if (this->primary_keys.size() > 1) {
         throw SqlDBException("multiple primary keys are not supported");
     }
+    for (auto &[fk, ref_table, fk_columns, ref_columns] : this->foreign_keys) {
+        OpTableAlterAddFk(this->name, fk, ref_table, fk_columns, ref_columns).execute(printer);
+    }
 }
 
 void OpTableDrop::execute(Printer *printer) {
@@ -80,7 +83,7 @@ void OpTableDescribe::execute(Printer *printer) {
                 type = new VarChar("FLOAT");
                 break;
             case ColumnType::VARCHAR:
-                type = new VarChar("VARCHAR(" + std::to_string(table->getColumnLength(i)) + ")");
+                type = new VarChar("VARCHAR(" + std::to_string(table->getColumnLength(i) - 1) + ")");
                 break;
             default:
                 type = new VarChar("UNKNOWN");

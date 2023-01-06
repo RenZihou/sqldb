@@ -54,12 +54,12 @@ std::any Visitor::visitShowTables(SQLParser::ShowTablesContext *ctx) {
 
 std::any Visitor::visitCreateTable(SQLParser::CreateTableContext *ctx) {
     std::string name = ctx->Identifier()->getText();
-    auto [columns, pk_info] = std::any_cast<std::tuple<
+    auto [columns, pk_info, fk_info] = std::any_cast<std::tuple<
             std::vector<Column>,
-            std::vector<std::tuple<std::string, std::vector<std::string>>>>>(
+            std::vector<std::tuple<std::string, std::vector<std::string>>>,
+            std::vector<std::tuple<std::string, std::string, std::vector<std::string>, std::vector<std::string>>>>>(
             visit(ctx->fieldList()));
-    auto *op = new OpTableCreate(name, columns, pk_info);
-
+    auto *op = new OpTableCreate(name, columns, pk_info, fk_info);
     return dynamic_cast<Op *>(op);
 }
 
@@ -165,6 +165,8 @@ std::any Visitor::visitAlterTableAddForeignKey(SQLParser::AlterTableAddForeignKe
 std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
     std::vector<Column> fields;
     std::vector<std::tuple<std::string, std::vector<std::string>>> pk_info;
+    std::vector<std::tuple<std::string, std::string, std::vector<std::string>,
+            std::vector<std::string>>> fk_info;
     // TODO fk info
     for (auto &field: ctx->field()) {
         switch (field->getStart()->getType()) {  // TODO this is a dirty hack
@@ -173,12 +175,14 @@ std::any Visitor::visitFieldList(SQLParser::FieldListContext *ctx) {
                         visit(field)));
                 break;
             case 36:  // FOREIGN
+                fk_info.push_back(std::any_cast<std::tuple<std::string, std::string,
+                        std::vector<std::string>, std::vector<std::string>>>(visit(field)));
                 break;
             default:  // other -> normal field
                 fields.push_back(std::any_cast<Column>(visit(field)));
         }
     }
-    return std::make_tuple(fields, pk_info);
+    return std::make_tuple(fields, pk_info, fk_info);
 }
 
 std::any Visitor::visitNormalField(SQLParser::NormalFieldContext *ctx) {
@@ -201,12 +205,21 @@ std::any Visitor::visitPrimaryKeyField(SQLParser::PrimaryKeyFieldContext *ctx) {
     return std::make_tuple(name, columns);
 }
 
+std::any Visitor::visitForeignKeyField(SQLParser::ForeignKeyFieldContext *ctx) {
+    std::string name = ctx->Identifier().size() == 2 ? ctx->Identifier(0)->getText() : "";
+    std::string ref_table = ctx->Identifier().size() == 2 ? ctx->Identifier(1)->getText()
+                                                          : ctx->Identifier(0)->getText();
+    auto columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers(0)));
+    auto ref_columns = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers(1)));
+    return std::make_tuple(name, ref_table, columns, ref_columns);
+}
+
 std::any Visitor::visitType(SQLParser::TypeContext *ctx) {
     if (ctx->getStart()->getText() == "INT")
         return std::make_tuple(ColumnType::INT, 4u);
     if (ctx->getStart()->getText() == "VARCHAR")
         return std::make_tuple(ColumnType::VARCHAR,
-                               static_cast<unsigned>(std::stoi(ctx->Integer()->getText())));
+                               static_cast<unsigned>(std::stoi(ctx->Integer()->getText()) + 1));
     if (ctx->getStart()->getText() == "FLOAT")
         return std::make_tuple(ColumnType::FLOAT, 4u);
     return std::make_tuple(ColumnType::UNKNOWN, 0u);

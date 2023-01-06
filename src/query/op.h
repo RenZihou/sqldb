@@ -115,12 +115,14 @@ private:
     std::string name;
     std::vector<Column> columns;
     std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys;
+    std::vector<std::tuple<std::string, std::string, std::vector<std::string>, std::vector<std::string>>> foreign_keys;
 
 public:
     OpTableCreate(std::string name, std::vector<Column> columns,
-                  std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys)
+                  std::vector<std::tuple<std::string, std::vector<std::string>>> primary_keys,
+                  std::vector<std::tuple<std::string, std::string, std::vector<std::string>, std::vector<std::string>>> foreign_keys)
             : Op(), name(std::move(name)), columns(std::move(columns)),
-              primary_keys(std::move(primary_keys)) {}
+              primary_keys(std::move(primary_keys)), foreign_keys(std::move(foreign_keys)) {}
 
     [[nodiscard]] OpType getType() const override { return OpType::TABLE_CREATE; }
 
