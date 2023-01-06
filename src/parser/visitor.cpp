@@ -107,8 +107,7 @@ std::any Visitor::visitSelectTable(SQLParser::SelectTableContext *ctx) {
     auto tables = std::any_cast<std::vector<std::string>>(visit(ctx->identifiers()));
     std::vector<Condition *> wheres;
     if (ctx->whereAndClause()) {
-        wheres = std::any_cast<std::vector<Condition *>>(
-                visit(ctx->whereAndClause()));  // TODO where
+        wheres = std::any_cast<std::vector<Condition *>>(visit(ctx->whereAndClause()));
     }
     auto *op = new OpTableSelect(selectors, tables, wheres);
     return dynamic_cast<Op *>(op);
@@ -261,6 +260,16 @@ std::any Visitor::visitWhereOperatorExpression(SQLParser::WhereOperatorExpressio
                 new ConditionCmp(new ExprColumn(lhs_table, lhs_column),
                                  new ExprColumn(rhs_table, rhs_column), op));
     }
+}
+
+std::any Visitor::visitWhereInList(SQLParser::WhereInListContext *ctx) {
+    auto [table, column] = std::any_cast<std::tuple<std::string, std::string>>(visit(ctx->column()));
+    auto values = std::any_cast<std::vector<std::string>>(visit(ctx->valueList()));
+    std::vector<ExprValue> expr_values;
+    for (auto &value: values) {
+        expr_values.emplace_back(value);
+    }
+    return dynamic_cast<Condition *>(new ConditionIn(new ExprColumn(table, column), expr_values));
 }
 
 std::any Visitor::visitColumn(SQLParser::ColumnContext *ctx) {

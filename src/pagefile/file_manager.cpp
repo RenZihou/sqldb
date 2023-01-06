@@ -27,7 +27,8 @@ void FileManager::setWd(const std::string &wd_) {
 
 void FileManager::rmDir(const std::string &dir) {
     if (dir == this->wd) {
-        // TODO close files
+        std::cerr << "removing working directory, close all files first" << std::endl;
+        return;
     }
     std::filesystem::remove_all(dir);
 }

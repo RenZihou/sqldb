@@ -106,8 +106,20 @@ void conditionalIterRecord(Table *table, const std::vector<Condition *> &conditi
             } else {
                 throw SqlDBException("invalid expression type");
             }
-        } else {
-            // TODO
+        } else if (condition->getType() == ConditionType::In) {
+            auto condition_ = dynamic_cast<ConditionIn *>(condition);
+            // prepare lhs column expression
+            ColumnType lhs_type;
+            unsigned lhs_length;
+            auto lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+            setupCondition(table, lhs, lhs_type, lhs_length,
+                           used_columns, used_columns_count);
+            for (auto &rhs: condition_->rhs) {
+                auto buffer = new unsigned char[lhs_length];
+                serializeFromString(rhs.value_s, lhs_type, buffer, lhs_length);
+                rhs.value = deserialize(buffer, lhs_type, lhs_length);
+                delete[] buffer;
+            }
         }
     }
     condition_values.resize(used_columns_count);
@@ -161,8 +173,20 @@ void conditionalIterRecordWithIndex(Table *table, const std::vector<Condition *>
             } else {
                 throw SqlDBException("invalid expression type");
             }
-        } else {
-            // TODO
+        } else if (condition->getType() == ConditionType::In) {
+            auto condition_ = dynamic_cast<ConditionIn *>(condition);
+            // prepare lhs column expression
+            ColumnType lhs_type;
+            unsigned lhs_length;
+            auto lhs = dynamic_cast<ExprColumn *>(condition_->lhs);
+            setupCondition(table, lhs, lhs_type, lhs_length,
+                           used_columns, used_columns_count);
+            for (auto &rhs: condition_->rhs) {
+                auto buffer = new unsigned char[lhs_length];
+                serializeFromString(rhs.value_s, lhs_type, buffer, lhs_length);
+                rhs.value = deserialize(buffer, lhs_type, lhs_length);
+                delete[] buffer;
+            }
         }
     }
     condition_values.resize(used_columns_count);
@@ -222,18 +246,19 @@ void conditionalSelect(const std::string &table_name,
     if (use_index) {
         auto *index = new IntIndex(table_name, index_column);
         conditionalIterRecordWithIndex(table, conditions, index, begin, end,
-                                       [&](RecordCursor &cursor, IntIndexCursor &index_cursor, bool satisfied) {
-           if (satisfied) {
-               for (int i = 0; i < selected_columns_count; ++i) {
-                   printer_line[i] = cursor.get(
-                           selected_columns[i]);
-               }
-               printer->printLine(printer_line);
-               for (auto &line : printer_line) {
-                   delete line;
-               }
-           }
-       });
+                                       [&](RecordCursor &cursor, IntIndexCursor &index_cursor,
+                                           bool satisfied) {
+                                           if (satisfied) {
+                                               for (int i = 0; i < selected_columns_count; ++i) {
+                                                   printer_line[i] = cursor.get(
+                                                           selected_columns[i]);
+                                               }
+                                               printer->printLine(printer_line);
+                                               for (auto &line: printer_line) {
+                                                   delete line;
+                                               }
+                                           }
+                                       });
     } else {
         conditionalIterRecord(table, conditions, [&](RecordCursor &cursor, bool satisfied) {
             if (satisfied) {

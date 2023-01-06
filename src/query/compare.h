@@ -2,10 +2,11 @@
 // -*- encoding: utf-8 -*-
 // @Author: RenZihou
 
-#ifndef CMP_H_  // TODO change macro name
-#define CMP_H_
+#ifndef COMPARE_H_
+#define COMPARE_H_
 
 #include <vector>
+#include <algorithm>
 
 #include "../table/type.h"
 #include "../table/type.h"
@@ -139,13 +140,22 @@ struct ConditionIn : public Condition {
     Expression *lhs;
     std::vector<ExprValue> rhs;
 
+    ConditionIn(Expression *lhs, std::vector<ExprValue> rhs) : lhs(lhs), rhs(std::move(rhs)) {}
+
+    ~ConditionIn() override {
+        delete lhs;
+    }
+
     ConditionType getType() override { return ConditionType::In; }
 
-//    bool satisfy(BufType lhs_data, BufType dumb) const override {
-//    }
+    [[nodiscard]] bool satisfy(const std::vector<Type *> &values) const override {
+        return std::any_of(this->rhs.begin(), this->rhs.end(), [&](const ExprValue &r) {
+            return Equal()(this->lhs->pick(values), r.value);
+        });
+    }
 };
 
 //struct ConditionLike : Condition {  // TODO new op in ConditionCmp?
 //};
 
-#endif  // CMP_H_
+#endif  // COMPARE_H_

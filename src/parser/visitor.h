@@ -69,7 +69,7 @@ public:
 
     std::any visitWhereOperatorExpression(SQLParser::WhereOperatorExpressionContext *ctx) override;
 
-//    std::any visitWhereInList(SQLParser::WhereInListContext *ctx) override;
+    std::any visitWhereInList(SQLParser::WhereInListContext *ctx) override;
 
 //    std::any visitWhereLikeString(SQLParser::WhereLikeStringContext *ctx) override;
 

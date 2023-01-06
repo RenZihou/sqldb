@@ -39,7 +39,7 @@ public:
 
     /**
      * @param dir directory to be removed
-     * @description remove directory
+     * @description remove directory, caller should make sure dir is not working directory
      */
     void rmDir(const std::string &dir);
 
@@ -85,7 +85,7 @@ public:
      * @return 0 for success
      * @description close file
      */
-    int closeFile(const std::string &filename);  // TODO close file
+    int closeFile(const std::string &filename);
 };
 
 #endif  // FILE_MANAGER_H_
