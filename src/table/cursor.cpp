@@ -47,7 +47,7 @@ void RecordCursor::del() {
             auto fk_table = new Table(this->table->header->reference_info[i].fk_table);
             std::string fk_column = fk_table->header->column_info[this->table->header->reference_info[i].fk_column].name;
             std::vector<std::tuple<std::string, std::string>> selectors;
-            selectors.emplace_back("", this->table->header->reference_info[i].fk_table);
+            selectors.emplace_back("", fk_column);
             auto condition = new ConditionCmp(new ExprColumn("", fk_column), new ExprValue(std::to_string(old_value)), new Equal);
             CounterPrinter printer;
             OpTableSelect(selectors, {this->table->header->reference_info[i].fk_table}, {condition}).execute(&printer);
@@ -78,7 +78,7 @@ void RecordCursor::set(const std::vector<std::tuple<int, std::string>> &updates)
                 auto fk_table = new Table(this->table->header->reference_info[i].fk_table);
                 std::string fk_column = fk_table->header->column_info[this->table->header->reference_info[i].fk_column].name;
                 std::vector<std::tuple<std::string, std::string>> selectors;
-                selectors.emplace_back("", this->table->header->reference_info[i].fk_table);
+                selectors.emplace_back("", fk_column);
                 auto condition = new ConditionCmp(new ExprColumn("", fk_column), new ExprValue(std::to_string(old_value)), new Equal);
                 CounterPrinter printer;
                 OpTableSelect(selectors, {this->table->header->reference_info[i].fk_table}, {condition}).execute(&printer);
