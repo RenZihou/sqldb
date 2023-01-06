@@ -345,7 +345,7 @@ void IntIndex::insert(int key, unsigned record_offset) {
             delete node;
         } else {  // create a new overflow node and insert two records
             unsigned old_record_offset = node->children[i];
-            auto overflow_node = (IntIndexOverflowNode *)this->_newNode(old_record_offset);
+            auto overflow_node = (IntIndexOverflowNode *)this->_newNode(node->children[i]);
             overflow_node->children[0] = old_record_offset;
             overflow_node->children[1] = record_offset;
             overflow_node->size = 2;
