@@ -29,15 +29,20 @@ public:
      * @return value if key exists, -1 otherwise
      */
     virtual int get(const KT &key) {
+        int counter = 0;
         unsigned h = this->_hash(key);
         this->hot = h % this->capacity;
         while ((this->values[this->hot] != -1 && this->keys[this->hot] != key)
                || (this->values[this->hot] == -1 &&
                    (this->removed[this->hot >> 5] & (1 << (this->hot & 31))))) {  // linear probe
             ++this->hot;
+            ++counter;
             this->hot %= this->capacity;
+            if (counter == this->capacity) {  // full
+                return -1;
+            }
         }
-        return this->values[this->hot];
+        return this->values[this->hot];  // -1 when not hit
 //        for (hot = h % (2 * this->capacity); hot < this->capacity; ++hot) {
 //            if (this->hkeys[hot] == h && this->keys[hot] == key) return this->values[hot];
 //        }
